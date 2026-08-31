@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Aegis Console — 안전한 서비스 운영',
+  title: 'TCK Safety Hub — 방문·공사·TBM 관리',
   description:
-    'Supabase와 Cloudflare 기반의 역할 중심 사용자 및 서비스 관리 콘솔',
+    'TCK 사업장 방문, 공사, TBM, 게시판과 설문을 통합 관리하는 안전관리 서비스',
 };
 
 export default function RootLayout({

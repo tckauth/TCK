@@ -29,7 +29,7 @@ export default async function UsersPage({
   const { supabase, roles } = await requireRole([
     'SUPER_ADMIN',
     'ADMIN',
-    'MANAGER',
+    'TBM_MANAGER',
   ]);
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
@@ -102,7 +102,7 @@ export default async function UsersPage({
                   const related = profile.user_roles as unknown as Array<{
                     roles: { name: string } | null;
                   }>;
-                  const role = related?.[0]?.roles?.name ?? 'USER';
+                  const role = related?.[0]?.roles?.name ?? 'VIEWER';
                   return (
                     <TableRow key={profile.id}>
                       <TableCell>

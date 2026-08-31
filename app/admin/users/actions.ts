@@ -7,7 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 const userSchema = z.object({
   email: z.email().max(254),
   fullName: z.string().trim().min(2).max(80),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'USER']),
+  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'TBM_MANAGER', 'VIEWER', 'EXTERNAL']),
 });
 export type ActionResult = { ok: boolean; message: string };
 async function audit(

@@ -123,3 +123,48 @@ Workers & Pages 프로젝트 → Custom Domains → Set up a custom domain에서
 ## 비용
 
 GitHub, Cloudflare, Supabase 무료 티어를 기본으로 하며 유료 외부 API가 없습니다. 트래픽과 DB/Storage 사용량은 각 서비스 Dashboard에서 알림 임계값을 설정하세요.
+
+## TCK 방문·공사·TBM 확장
+
+두 번째 migration인 `202608310002_tck_visit_tbm.sql`은 다음 기능을 추가합니다.
+
+- 역할: `SUPER_ADMIN`, `ADMIN`, `TBM_MANAGER`, `VIEWER`, `EXTERNAL`
+- 신규 회원 기본 역할: `EXTERNAL`
+- 방문/공사 등록, 서버 검색·필터·페이지네이션, Soft Delete
+- TBM `NULL/O/X` 제약조건과 담당 권한자의 서버 측 변경 검증
+- 외부업체 작성자 소유권 기반 RLS
+- Realtime 현황판과 TBM별 행 색상
+- CSV 조건부 내보내기
+- 게시판, 이미지·영상 첨부, private Storage signed URL
+- 단일/복수 선택 설문, 사용자별 중복 응답 차단, 결과 집계
+
+기존 DB를 확장할 때 migration 파일을 순서대로 적용합니다.
+
+```bash
+supabase db push
+supabase test db
+```
+
+Supabase Dashboard → Database → Replication에서 `visits`가 Realtime publication에 포함되었는지 확인합니다. SQL migration이 자동으로 추가하지만 프로젝트 정책에 따라 Dashboard 확인이 필요할 수 있습니다.
+
+### 업로드 정책
+
+- 이미지: JPEG, PNG, GIF, WebP
+- 영상: MP4, WebM, MOV
+- 최대 크기: 100MB
+- 저장 경로: `<user-id>/<uuid>.<validated-extension>`
+- bucket은 비공개이며 로그인한 사용자에게 1시간 signed URL을 발급합니다.
+
+Cloudflare의 요청 본문 제한이 Supabase의 100MB보다 작을 수 있습니다. 운영에서 큰 영상을 주로 사용한다면 Supabase signed upload URL을 이용한 직접 업로드 방식으로 전환하거나 외부 영상 URL을 사용하세요.
+
+### 권한 검증
+
+| 작업 | SUPER_ADMIN | ADMIN | TBM_MANAGER | VIEWER | EXTERNAL |
+|---|---:|---:|---:|---:|---:|
+| 전체 방문 조회 | O | O | O | O | X |
+| 본인 방문 등록/조회 | O | O | O | O | O |
+| TBM 변경 | O | O | O | X | X |
+| 방문 수정·삭제 | O | O | O | X | 본인 수정만 |
+| 사용자/시스템 관리 | O | O | X | X | X |
+
+화면에서 버튼을 숨기는 것과 별개로 서버 액션과 PostgreSQL RLS가 동일 권한을 다시 검증합니다. `supabase/tests/acceptance.sql`에는 schema·제약조건·중복 설문 방지 테스트가 포함되어 있습니다.

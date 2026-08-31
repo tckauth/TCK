@@ -2,9 +2,13 @@ import Link from 'next/link';
 import {
   Activity,
   Bell,
+  BookOpen,
+  CalendarPlus,
   ChevronRight,
+  ClipboardCheck,
   LayoutDashboard,
   LogOut,
+  Monitor,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -17,6 +21,10 @@ import type { AppRole } from '@/types/database';
 
 const links = [
   ['/dashboard', '대시보드', LayoutDashboard],
+  ['/visits', '방문/공사 현황', ClipboardCheck],
+  ['/visits/new', '방문/공사 등록', CalendarPlus],
+  ['/board', '현황판', Monitor],
+  ['/posts', '게시판', BookOpen],
   ['/admin/users', '사용자 관리', Users],
   ['/admin/roles', '권한 관리', ShieldCheck],
   ['/admin/settings', '서비스 설정', SlidersHorizontal],
@@ -43,7 +51,7 @@ export function AppShell({
           <span className="grid size-9 place-items-center rounded-xl bg-white text-primary">
             <ShieldCheck className="size-5" />
           </span>
-          Aegis Console
+          TCK Safety Hub
         </Link>
         <nav className="flex-1 space-y-1 p-3">
           {links.map(([href, label, Icon]) => (
@@ -71,7 +79,7 @@ export function AppShell({
             className="flex items-center gap-2 font-semibold md:hidden"
           >
             <ShieldCheck className="size-5 text-primary" />
-            Aegis
+            TCK Safety
           </Link>
           <div className="hidden text-sm text-muted-foreground md:block">
             운영 워크스페이스
@@ -86,7 +94,7 @@ export function AppShell({
             <div className="hidden sm:block">
               <p className="max-w-40 truncate text-xs font-medium">{email}</p>
               <p className="text-[11px] text-muted-foreground">
-                {roles[0] ?? 'USER'}
+                {roles[0] ?? 'VIEWER'}
               </p>
             </div>
             <form action={logout}>

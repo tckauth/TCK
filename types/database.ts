@@ -1,4 +1,9 @@
-export type AppRole = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER';
+export type AppRole =
+  | 'SUPER_ADMIN'
+  | 'ADMIN'
+  | 'TBM_MANAGER'
+  | 'VIEWER'
+  | 'EXTERNAL';
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 export interface Profile {
   id: string;

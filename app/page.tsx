@@ -18,7 +18,7 @@ export default function Home() {
             <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
               <ShieldCheck className="size-5" />
             </span>
-            Aegis Console
+            TCK Safety Hub
           </div>
           <Button nativeButton={false} render={<Link href="/login" />}>
             관리자 로그인 <ArrowRight />
@@ -28,18 +28,22 @@ export default function Home() {
       <section className="mx-auto grid max-w-7xl gap-12 px-5 py-16 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-24">
         <div className="flex flex-col justify-center">
           <div className="mb-5 w-fit rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary">
-            Supabase · Cloudflare · PostgreSQL
+            방문 · 공사 · TBM 통합 안전관리
           </div>
           <h1 className="max-w-2xl text-4xl font-bold tracking-[-0.04em] sm:text-5xl lg:text-6xl">
-            팀과 서비스 운영을
-            <br />한 곳에서 안전하게.
+            사업장 방문과 공사를
+            <br />더 빠르고 안전하게.
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-            역할 기반 접근 제어, 사용자 관리, 감사 로그를 갖춘 운영 콘솔입니다.
-            중요한 권한은 서버와 데이터베이스에서 이중으로 검증합니다.
+            외부업체 방문 등록부터 TCK 담당자의 TBM 확인, 실시간 현황판과 안전
+            게시판까지 하나의 서비스에서 관리합니다.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button size="lg" nativeButton={false} render={<Link href="/login" />}>
+            <Button
+              size="lg"
+              nativeButton={false}
+              render={<Link href="/login" />}
+            >
               콘솔 시작하기 <ArrowRight />
             </Button>
             <Button
