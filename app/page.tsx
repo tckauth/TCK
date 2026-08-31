@@ -20,7 +20,7 @@ export default function Home() {
             </span>
             Aegis Console
           </div>
-          <Button render={<Link href="/login" />}>
+          <Button nativeButton={false} render={<Link href="/login" />}>
             관리자 로그인 <ArrowRight />
           </Button>
         </div>
@@ -39,12 +39,13 @@ export default function Home() {
             중요한 권한은 서버와 데이터베이스에서 이중으로 검증합니다.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button size="lg" render={<Link href="/login" />}>
+            <Button size="lg" nativeButton={false} render={<Link href="/login" />}>
               콘솔 시작하기 <ArrowRight />
             </Button>
             <Button
               size="lg"
               variant="outline"
+              nativeButton={false}
               render={<Link href="/signup" />}
             >
               계정 만들기
