@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireRole } from '@/lib/auth/authorization';
 import { createAdminClient } from '@/lib/supabase/admin';
+import type { AppRole } from '@/types/database';
 
 const userSchema = z.object({
   email: z.email().max(254),
@@ -10,6 +11,13 @@ const userSchema = z.object({
   role: z.enum(['SUPER_ADMIN', 'ADMIN', 'TBM_MANAGER', 'VIEWER', 'EXTERNAL']),
 });
 export type ActionResult = { ok: boolean; message: string };
+const managedRoleSchema = z.enum([
+  'SUPER_ADMIN',
+  'ADMIN',
+  'TBM_MANAGER',
+  'VIEWER',
+  'EXTERNAL',
+]);
 async function audit(
   actor: string,
   action: string,
@@ -36,6 +44,21 @@ export async function createUser(
     role: formData.get('role'),
   });
   if (!parsed.success) return { ok: false, message: '입력값을 확인하세요.' };
+  const actorRoles = await (async () => {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('user_roles')
+      .select('roles(name)')
+      .eq('user_id', user.id);
+    return (data ?? []).map(
+      (row) => (row.roles as unknown as { name: AppRole }).name,
+    );
+  })();
+  if (
+    !actorRoles.includes('SUPER_ADMIN') &&
+    ['SUPER_ADMIN', 'ADMIN'].includes(parsed.data.role)
+  )
+    return { ok: false, message: '해당 관리자 역할을 부여할 권한이 없습니다.' };
   const admin = createAdminClient();
   const password = crypto.randomUUID() + 'aA1!';
   const { data, error } = await admin.auth.admin.createUser({
@@ -69,6 +92,51 @@ export async function createUser(
     ok: true,
     message: '사용자를 만들고 비밀번호 설정 메일을 보냈습니다.',
   };
+}
+export async function setUserRole(userId: string, formData: FormData) {
+  const { user, roles: actorRoles } = await requireRole([
+    'SUPER_ADMIN',
+    'ADMIN',
+  ]);
+  const parsed = managedRoleSchema.safeParse(formData.get('role'));
+  if (!parsed.success) return;
+  const isSuper = actorRoles.includes('SUPER_ADMIN');
+  if (user.id === userId && !isSuper) return;
+  if (!isSuper && ['SUPER_ADMIN', 'ADMIN'].includes(parsed.data)) return;
+
+  const admin = createAdminClient();
+  const { data: current } = await admin
+    .from('user_roles')
+    .select('roles(name)')
+    .eq('user_id', userId);
+  const currentRoles = (current ?? []).map(
+    (row) => (row.roles as unknown as { name: AppRole }).name,
+  );
+  if (!isSuper && currentRoles.some((r) => ['SUPER_ADMIN', 'ADMIN'].includes(r)))
+    return;
+
+  const { data: targetRole } = await admin
+    .from('roles')
+    .select('id')
+    .eq('name', parsed.data)
+    .single();
+  if (!targetRole) return;
+  await admin.from('user_roles').upsert(
+    { user_id: userId, role_id: targetRole.id },
+    { onConflict: 'user_id,role_id' },
+  );
+  await admin
+    .from('user_roles')
+    .delete()
+    .eq('user_id', userId)
+    .neq('role_id', targetRole.id);
+  await audit(
+    user.id,
+    'CHANGE_USER_ROLE',
+    userId,
+    `사용자 역할을 ${parsed.data}(으)로 변경했습니다.`,
+  );
+  revalidatePath('/admin/users');
 }
 export async function setUserStatus(
   userId: string,

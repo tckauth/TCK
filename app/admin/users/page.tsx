@@ -12,6 +12,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
+  NativeSelect,
+  NativeSelectOption,
+} from '@/components/ui/native-select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,7 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { CreateUserForm } from '@/components/admin/create-user-form';
-import { setUserStatus, deleteUser } from './actions';
+import { setUserStatus, deleteUser, setUserRole } from './actions';
 export default async function UsersPage({
   searchParams,
 }: {
@@ -114,7 +118,35 @@ export default async function UsersPage({
                         </p>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{role}</Badge>
+                        {canEdit &&
+                        (isSuper || !['SUPER_ADMIN', 'ADMIN'].includes(role)) ? (
+                          <form
+                            action={setUserRole.bind(null, profile.id)}
+                            className="flex min-w-44 gap-2"
+                          >
+                            <NativeSelect
+                              name="role"
+                              defaultValue={role}
+                              aria-label={`${profile.email} 역할`}
+                            >
+                              {[
+                                'EXTERNAL',
+                                'VIEWER',
+                                'TBM_MANAGER',
+                                ...(isSuper ? ['ADMIN', 'SUPER_ADMIN'] : []),
+                              ].map((item) => (
+                                <NativeSelectOption key={item} value={item}>
+                                  {item}
+                                </NativeSelectOption>
+                              ))}
+                            </NativeSelect>
+                            <Button variant="outline" size="sm">
+                              저장
+                            </Button>
+                          </form>
+                        ) : (
+                          <Badge variant="outline">{role}</Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge

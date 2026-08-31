@@ -42,7 +42,7 @@ npm을 사용하는 경우 `npm install`, `npm run dev`도 가능합니다. 저�
 
 1. Supabase Dashboard에서 새 프로젝트를 생성합니다.
 2. Authentication → URL Configuration에서 Site URL과 `/auth/callback`, `/reset-password` redirect URL을 등록합니다.
-3. SQL Editor에서 `supabase/migrations/202608310001_initial_schema.sql` 전체를 실행합니다. 또는 Supabase CLI로 `supabase link --project-ref <ref>` 후 `supabase db push`를 실행합니다.
+3. SQL Editor에서 `supabase/migrations`의 파일을 파일명 순서대로 실행합니다. 또는 Supabase CLI로 `supabase link --project-ref <ref>` 후 `supabase db push`를 실행합니다.
 4. Authentication → Providers에서 Email을 활성화하고 운영 환경에서는 이메일 확인을 켭니다.
 5. Storage가 필요한 서비스 기능을 추가할 때는 비공개 bucket과 객체 소유자 기반 RLS 정책을 먼저 만듭니다.
 
@@ -168,3 +168,18 @@ Cloudflare의 요청 본문 제한이 Supabase의 100MB보다 작을 수 있습�
 | 사용자/시스템 관리 | O | O | X | X | X |
 
 화면에서 버튼을 숨기는 것과 별개로 서버 액션과 PostgreSQL RLS가 동일 권한을 다시 검증합니다. `supabase/tests/acceptance.sql`에는 schema·제약조건·중복 설문 방지 테스트가 포함되어 있습니다.
+
+### PostgreSQL 접속
+
+Supabase Dashboard의 **Project Settings → Database → Connect**에서 연결 문자열을 복사합니다. 장시간 실행되는 서버나 마이그레이션에는 Direct connection 또는 Session pooler를, Cloudflare Workers 같은 서버리스 런타임에는 IPv4 호환 Transaction pooler를 사용합니다. 모든 연결은 `sslmode=require`로 암호화하고 DB 비밀번호는 브라우저용 환경변수에 넣지 않습니다.
+
+```bash
+# Supabase CLI를 통한 마이그레이션/SQL 작업
+supabase link --project-ref <project-ref>
+supabase db push
+
+# psql 직접 접속 예시(실제 값은 Dashboard의 Connect에서 복사)
+psql "postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/postgres?sslmode=require"
+```
+
+애플리케이션의 일반 데이터 요청은 PostgreSQL TCP에 직접 연결하지 않고 `NEXT_PUBLIC_SUPABASE_URL`과 anon key를 사용하는 Supabase HTTPS API를 거칩니다. 따라서 Cloudflare Workers에서도 RLS가 적용된 상태로 동작합니다.
