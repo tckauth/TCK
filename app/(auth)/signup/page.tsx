@@ -6,7 +6,7 @@ export default function SignupPage() {
     <>
       <h1 className="text-3xl font-bold tracking-tight">계정 만들기</h1>
       <p className="mb-8 mt-2 text-muted-foreground">
-        이메일 인증 후 바로 시작할 수 있습니다.
+          이메일 인증과 TBM 담당자의 승인 후 이용할 수 있습니다.
       </p>
       <AuthForm mode="signup" action={signup} />
       <p className="mt-6 text-center text-sm text-muted-foreground">

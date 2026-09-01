@@ -56,6 +56,11 @@ export function AuthForm({
               mode === 'login' ? 'current-password' : 'new-password'
             }
           />
+          {mode === 'signup' && (
+            <p className="text-xs text-muted-foreground">
+              비밀번호는 8자 이상 입력해 주세요.
+            </p>
+          )}
         </div>
       )}
       {state.error && (
@@ -71,7 +76,12 @@ export function AuthForm({
           {state.success}
         </output>
       )}
-      <Button className="w-full" size="lg" disabled={pending}>
+      <Button
+        type="submit"
+        className="w-full"
+        size="lg"
+        disabled={pending}
+      >
         {pending && <LoaderCircle className="animate-spin" />}
         {mode === 'login'
           ? '로그인'
