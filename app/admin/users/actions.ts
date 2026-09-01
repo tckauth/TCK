@@ -69,6 +69,10 @@ export async function createUser(
   });
   if (error || !data.user)
     return { ok: false, message: '사용자를 생성하지 못했습니다.' };
+  await admin
+    .from('profiles')
+    .update({ status: 'ACTIVE', approved_at: new Date().toISOString(), approved_by: user.id })
+    .eq('id', data.user.id);
   const { data: role } = await admin
     .from('roles')
     .select('id')
@@ -145,12 +149,45 @@ export async function setUserStatus(
   const { user } = await requireRole(['SUPER_ADMIN', 'ADMIN']);
   if (user.id === userId && status === 'INACTIVE') return;
   const admin = createAdminClient();
+  const { data: target } = await admin
+    .from('profiles')
+    .select('status')
+    .eq('id', userId)
+    .single();
+  if (target?.status === 'PENDING') return;
   await admin.from('profiles').update({ status }).eq('id', userId);
   await audit(
     user.id,
     'UPDATE_USER',
     userId,
     `사용자 상태를 ${status}(으)로 변경했습니다.`,
+  );
+  revalidatePath('/admin/users');
+}
+export async function approveUser(userId: string) {
+  const { user } = await requireRole(['TBM_MANAGER']);
+  if (user.id === userId) return;
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('status,email')
+    .eq('id', userId)
+    .single();
+  if (!profile || profile.status !== 'PENDING') return;
+  await admin
+    .from('profiles')
+    .update({
+      status: 'ACTIVE',
+      approved_at: new Date().toISOString(),
+      approved_by: user.id,
+    })
+    .eq('id', userId)
+    .eq('status', 'PENDING');
+  await audit(
+    user.id,
+    'APPROVE_SIGNUP',
+    userId,
+    `${profile.email} 가입을 승인했습니다.`,
   );
   revalidatePath('/admin/users');
 }

@@ -1,2 +1,7 @@
-name = "aegis-console"
+name = "tck-ehs"
 compatibility_date = "2026-05-22"
+
+[vars]
+NEXT_PUBLIC_SUPABASE_URL = "https://wwcqupwfulykvxgvdimr.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_OM1CLbPYf1wxADAwMSiQcQ_yP1Q9iDn"
+NEXT_PUBLIC_SITE_URL = "https://tck-ehs.e-yunho.workers.dev"

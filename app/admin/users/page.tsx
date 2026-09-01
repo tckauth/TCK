@@ -24,7 +24,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { CreateUserForm } from '@/components/admin/create-user-form';
-import { setUserStatus, deleteUser, setUserRole } from './actions';
+import {
+  approveUser,
+  setUserStatus,
+  deleteUser,
+  setUserRole,
+} from './actions';
 export default async function UsersPage({
   searchParams,
 }: {
@@ -49,6 +54,7 @@ export default async function UsersPage({
     );
   const { data, count } = await query;
   const canEdit = roles.some((r) => r === 'ADMIN' || r === 'SUPER_ADMIN');
+  const canApprove = roles.includes('TBM_MANAGER');
   const isSuper = roles.includes('SUPER_ADMIN');
   const pages = Math.max(1, Math.ceil((count ?? 0) / size));
   return (
@@ -156,7 +162,9 @@ export default async function UsersPage({
                               : 'secondary'
                           }
                         >
-                          {profile.status}
+                          {profile.status === 'PENDING'
+                            ? '승인 대기'
+                            : profile.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -172,7 +180,15 @@ export default async function UsersPage({
                           : '—'}
                       </TableCell>
                       <TableCell className="text-right">
-                        {canEdit && (
+                        {canApprove && profile.status === 'PENDING' && (
+                          <form
+                            className="inline"
+                            action={approveUser.bind(null, profile.id)}
+                          >
+                            <Button size="sm">가입 승인</Button>
+                          </form>
+                        )}
+                        {canEdit && profile.status !== 'PENDING' && (
                           <form
                             className="inline"
                             action={setUserStatus.bind(

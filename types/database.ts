@@ -4,12 +4,14 @@ export type AppRole =
   | 'TBM_MANAGER'
   | 'VIEWER'
   | 'EXTERNAL';
-export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+export type UserStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 export interface Profile {
   id: string;
   full_name: string | null;
   email: string;
   status: UserStatus;
+  approved_at: string | null;
+  approved_by: string | null;
   last_sign_in_at: string | null;
   created_at: string;
   updated_at: string;

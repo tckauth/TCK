@@ -8,6 +8,15 @@ export async function requireUser() {
     error,
   } = await supabase.auth.getUser();
   if (error || !user) redirect('/login');
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('status')
+    .eq('id', user.id)
+    .single();
+  if (profile?.status !== 'ACTIVE') {
+    await supabase.auth.signOut();
+    redirect('/login?error=approval-required');
+  }
   return { supabase, user };
 }
 export async function getRoles(userId: string): Promise<AppRole[]> {
