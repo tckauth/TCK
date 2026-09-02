@@ -14,17 +14,18 @@ export default async function PostsPage({
 }: {
   searchParams: Promise<{ q?: string; type?: string; page?: string }>;
 }) {
-  const { supabase, roles } = await requireRole(['SUPER_ADMIN', 'VIEWER']);
+  const { supabase, roles } = await requireRole(['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER']);
   const p = await searchParams;
   const page = Math.max(1, Number(p.page) || 1);
   const size = 12;
   let query = supabase
     .from('posts')
     .select(
-      'id,title,content,post_type,view_count,created_at,profiles(full_name,email)',
+      'id,title,content,post_type,is_pinned,view_count,created_at,profiles(full_name,email)',
       { count: 'exact' },
     )
     .is('deleted_at', null)
+    .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false })
     .range((page - 1) * size, page * size - 1);
   if (p.q)
@@ -93,6 +94,7 @@ export default async function PostsPage({
                   >
                     {post.post_type}
                   </Badge>
+                  {post.is_pinned && <Badge variant="outline" className="h-fit">상단 고정</Badge>}
                   <div className="min-w-0 flex-1">
                     <h2 className="truncate font-semibold">{post.title}</h2>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">

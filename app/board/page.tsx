@@ -6,14 +6,19 @@ import { RealtimeRefresh } from '@/components/visits/realtime-refresh';
 export default async function BoardPage() {
   const { supabase } = await requireUser();
   const today = new Date().toISOString().slice(0, 10);
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('visits')
     .select(
-      'id,visit_date,company_name,visitor_count,construction_location,construction_yn,tbm_yn,profiles!visits_tck_manager_id_fkey(full_name,email)',
+      'id,visit_date,company_name,visitor_count,construction_location,construction_yn,tbm_yn,tck_manager_id',
     )
     .eq('visit_date', today)
     .is('deleted_at', null)
     .order('created_at');
+  const managerIds = [...new Set((data ?? []).map((visit) => visit.tck_manager_id))];
+  const { data: managers } = managerIds.length
+    ? await supabase.from('profiles').select('id,full_name,email').in('id', managerIds)
+    : { data: [] };
+  const managerById = new Map((managers ?? []).map((manager) => [manager.id, manager]));
   const total = (data ?? []).reduce((sum, v) => sum + v.visitor_count, 0);
   return (
     <div className="mx-auto max-w-7xl">
@@ -59,11 +64,15 @@ export default async function BoardPage() {
         </Card>
       </div>
       <div className="grid gap-3">
+        {error && (
+          <Card className="border-red-200 bg-red-50 shadow-none">
+            <CardContent className="py-8 text-center text-sm text-red-700">
+              현황 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+            </CardContent>
+          </Card>
+        )}
         {data?.map((v) => {
-          const manager = v.profiles as unknown as {
-            full_name: string | null;
-            email: string;
-          } | null;
+          const manager = managerById.get(v.tck_manager_id);
           return (
             <Card
               key={v.id}

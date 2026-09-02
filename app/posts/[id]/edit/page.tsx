@@ -15,7 +15,7 @@ export default async function EditPost({
   const { supabase, user } = await requireUser();
   const { data: post } = await supabase
     .from('posts')
-    .select('id,title,content,author_id')
+    .select('id,title,content,author_id,is_pinned')
     .eq('id', id)
     .is('deleted_at', null)
     .single();
@@ -39,6 +39,10 @@ export default async function EditPost({
                 maxLength={200}
               />
             </div>
+            <label className="flex items-center gap-2 rounded-lg border p-3 text-sm">
+              <input type="checkbox" name="isPinned" defaultChecked={post.is_pinned} />
+              게시판 최상단에 고정
+            </label>
             <div className="space-y-2">
               <Label htmlFor="content">내용</Label>
               <Textarea

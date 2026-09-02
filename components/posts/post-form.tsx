@@ -34,6 +34,10 @@ export function PostForm() {
           <NativeSelectOption value="SURVEY">설문</NativeSelectOption>
         </NativeSelect>
       </div>
+      <label className="flex items-center gap-2 rounded-lg border p-3 text-sm">
+        <input type="checkbox" name="isPinned" />
+        게시판 최상단에 고정
+      </label>
       <div className="space-y-2">
         <Label htmlFor="title">제목</Label>
         <Input id="title" name="title" required maxLength={200} />
@@ -80,6 +84,16 @@ export function PostForm() {
           <div className="space-y-2">
             <Label htmlFor="surveyQuestion">질문</Label>
             <Input id="surveyQuestion" name="surveyQuestion" required />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="surveyStartsAt">설문 시작</Label>
+              <Input id="surveyStartsAt" name="surveyStartsAt" type="datetime-local" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="surveyEndsAt">설문 종료</Label>
+              <Input id="surveyEndsAt" name="surveyEndsAt" type="datetime-local" required />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="surveyOptions">선택지 (한 줄에 하나)</Label>

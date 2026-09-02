@@ -32,6 +32,16 @@ export async function createPost(
   });
   if (!parsed.success)
     return { ok: false, message: '제목, 내용, 유형을 확인하세요.' };
+  const startsAtValue = formData.get('surveyStartsAt');
+  const endsAtValue = formData.get('surveyEndsAt');
+  const startsAt = typeof startsAtValue === 'string' ? new Date(startsAtValue) : null;
+  const endsAt = typeof endsAtValue === 'string' ? new Date(endsAtValue) : null;
+  if (
+    parsed.data.postType === 'SURVEY' &&
+    (!startsAt || !endsAt || Number.isNaN(startsAt.valueOf()) || Number.isNaN(endsAt.valueOf()) || startsAt >= endsAt)
+  ) {
+    return { ok: false, message: '설문 시작과 종료 시간을 올바르게 설정하세요.' };
+  }
   const { data: post, error } = await supabase
     .from('posts')
     .insert({
@@ -39,6 +49,7 @@ export async function createPost(
       content: parsed.data.content,
       post_type: parsed.data.postType,
       author_id: user.id,
+      is_pinned: formData.get('isPinned') === 'on',
       external_video_url: parsed.data.externalVideoUrl || null,
     })
     .select('id')
@@ -98,6 +109,8 @@ export async function createPost(
         .insert({
           post_id: post.id,
           is_results_public: formData.get('resultsPublic') === 'on',
+          starts_at: startsAt!.toISOString(),
+          ends_at: endsAt!.toISOString(),
         })
         .select('id')
         .single();
@@ -170,7 +183,11 @@ export async function updatePost(postId: string, formData: FormData) {
   const content = typeof contentValue === 'string' ? contentValue.trim() : '';
   if (!title || title.length > 200 || !content || content.length > 20000)
     throw new Error('입력값을 확인하세요.');
-  await supabase.from('posts').update({ title, content }).eq('id', postId);
+  await supabase.from('posts').update({
+    title,
+    content,
+    is_pinned: formData.get('isPinned') === 'on',
+  }).eq('id', postId);
   await supabase
     .from('audit_logs')
     .insert({
@@ -184,7 +201,17 @@ export async function updatePost(postId: string, formData: FormData) {
   redirect(`/posts/${postId}`);
 }
 export async function submitSurvey(surveyId: string, formData: FormData) {
-  const { supabase, user } = await requireRole(['SUPER_ADMIN']);
+  const { supabase, user } = await requireRole(['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER']);
+  const { data: survey } = await supabase
+    .from('surveys')
+    .select('starts_at,ends_at')
+    .eq('id', surveyId)
+    .single();
+  const now = Date.now();
+  if (!survey || (survey.starts_at && new Date(survey.starts_at).getTime() > now))
+    throw new Error('아직 시작하지 않은 설문입니다.');
+  if (survey.ends_at && new Date(survey.ends_at).getTime() <= now)
+    throw new Error('종료된 설문입니다.');
   const selected = formData
     .getAll('option')
     .filter((v): v is string => typeof v === 'string');

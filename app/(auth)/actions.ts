@@ -31,6 +31,14 @@ export async function login(
           : '비활성화된 계정입니다. 관리자에게 문의하세요.',
     };
   }
+  await supabase.from('profiles').update({ last_sign_in_at: new Date().toISOString() }).eq('id', data.user.id);
+  await supabase.from('audit_logs').insert({
+    user_id: data.user.id,
+    action: 'LOGIN',
+    target_type: 'AUTH',
+    target_id: data.user.id,
+    description: '로그인에 성공했습니다.',
+  });
   redirect('/dashboard');
 }
 export async function signup(
@@ -78,6 +86,16 @@ export async function requestReset(
 }
 export async function logout() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    await supabase.from('audit_logs').insert({
+      user_id: user.id,
+      action: 'LOGOUT',
+      target_type: 'AUTH',
+      target_id: user.id,
+      description: '로그아웃했습니다.',
+    });
+  }
   await supabase.auth.signOut();
   redirect('/login');
 }

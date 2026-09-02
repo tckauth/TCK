@@ -26,7 +26,7 @@ const links: ReadonlyArray<
   ['/visits', '방문/공사 현황', ClipboardCheck, ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER']],
   ['/visits/new', '방문/공사 등록', CalendarPlus, ['SUPER_ADMIN', 'TBM_ADMIN', 'VISITER']],
   ['/board', '현황판', Monitor, ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER']],
-  ['/posts', '게시판', BookOpen, ['SUPER_ADMIN', 'VIEWER']],
+  ['/posts', '게시판', BookOpen, ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER']],
   ['/admin/users', '사용자 관리', Users, ['SUPER_ADMIN', 'APPR_ADMIN']],
   ['/admin/roles', '권한 관리', ShieldCheck, ['SUPER_ADMIN']],
   ['/admin/settings', '서비스 설정', SlidersHorizontal, ['SUPER_ADMIN']],
@@ -72,10 +72,10 @@ export function AppShell({
             </Link>
             ))}
         </nav>
-        <div className="border-t border-white/10 p-4 text-xs text-white/50">
-          Cloudflare · Supabase
+        <div className="border-t border-white/10 p-4 text-sm leading-6 text-white/70">
+          TCK의 안전은
           <br />
-          보안 연결됨
+          귀하의 손에 달려있습니다
         </div>
       </aside>
       <div className="min-w-0">
@@ -115,6 +115,20 @@ export function AppShell({
             </form>
           </div>
         </header>
+        <nav className="flex gap-2 overflow-x-auto border-b bg-background px-4 py-2 md:hidden">
+          {links
+            .filter(([, , , allowed]) => roles.some((role) => allowed.includes(role)))
+            .map(([href, label, Icon]) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border bg-card px-3 py-2 text-xs font-medium"
+              >
+                <Icon className="size-3.5" />
+                {label}
+              </Link>
+            ))}
+        </nav>
         <main className="p-5 lg:p-8">{children}</main>
       </div>
     </div>

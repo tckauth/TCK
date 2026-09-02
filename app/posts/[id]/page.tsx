@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { requireUser, getRoles } from '@/lib/auth/authorization';
 import { DeletePostButton } from '@/components/posts/delete-post-button';
 import { submitSurvey } from '../actions';
+import { getRequestTimestamp } from '@/lib/request-time';
 export default async function PostDetail({
   params,
 }: {
@@ -54,18 +55,27 @@ export default async function PostDetail({
       ? await supabase
           .from('surveys')
           .select(
-            'id,is_results_public,survey_questions(id,question_text,allow_multiple,survey_options(id,option_text,sort_order))',
+            'id,is_results_public,starts_at,ends_at,survey_questions(id,question_text,allow_multiple,survey_options(id,option_text,sort_order))',
           )
           .eq('post_id', id)
           .single()
       : { data: null };
   let counts: Record<string, number> = {};
   let total = 0;
-  if (
-    survey &&
-    (survey.is_results_public ||
-      roles.includes('SUPER_ADMIN'))
-  ) {
+  const now = getRequestTimestamp();
+  const hasStarted = !survey?.starts_at || new Date(survey.starts_at).getTime() <= now;
+  const hasEnded = Boolean(survey?.ends_at && new Date(survey.ends_at).getTime() <= now);
+  const isSurveyManager = roles.some((role) => ['SUPER_ADMIN', 'TBM_ADMIN'].includes(role));
+  const canViewResults = Boolean(survey && (isSurveyManager || (!hasEnded && survey.is_results_public)));
+  const { count: responseCount } = survey
+    ? await supabase
+        .from('survey_responses')
+        .select('id', { count: 'exact', head: true })
+        .eq('survey_id', survey.id)
+        .eq('user_id', user.id)
+    : { count: 0 };
+  const hasResponded = (responseCount ?? 0) > 0;
+  if (survey && canViewResults) {
     const { data: answers } = await supabase
       .from('survey_answers')
       .select('option_id,survey_responses!inner(survey_id)')
@@ -97,6 +107,7 @@ export default async function PostDetail({
       <div className="mb-6">
         <div className="flex items-center gap-2">
           <Badge>{post.post_type}</Badge>
+          {post.is_pinned && <Badge variant="outline">상단 고정</Badge>}
           <span className="text-xs text-muted-foreground">
             조회 {post.view_count + 1}
           </span>
@@ -165,7 +176,15 @@ export default async function PostDetail({
       {survey && question && (
         <Card className="mt-6 shadow-none">
           <CardContent className="p-6">
-            <Badge variant="outline">설문</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">설문</Badge>
+              <Badge variant={hasEnded ? 'secondary' : hasStarted ? 'default' : 'outline'}>
+                {hasEnded ? '종료' : hasStarted ? '진행 중' : '시작 전'}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {survey.starts_at ? new Date(survey.starts_at).toLocaleString('ko-KR') : '즉시'} ~ {survey.ends_at ? new Date(survey.ends_at).toLocaleString('ko-KR') : '종료일 없음'}
+              </span>
+            </div>
             <h2 className="mt-3 text-xl font-semibold">
               {question.question_text}
             </h2>
@@ -184,18 +203,21 @@ export default async function PostDetail({
                       type={question.allow_multiple ? 'checkbox' : 'radio'}
                       name="option"
                       value={o.id}
+                      disabled={!hasStarted || hasEnded || hasResponded}
                     />
                     <span className="flex-1">{o.option_text}</span>
-                    {total > 0 && (
+                    {canViewResults && total > 0 && (
                       <span className="text-xs text-muted-foreground">
                         {Math.round(((counts[o.id] ?? 0) / total) * 100)}%
                       </span>
                     )}
                   </label>
                 ))}
-              <Button>응답 제출</Button>
+              <Button disabled={!hasStarted || hasEnded || hasResponded}>
+                {hasResponded ? '응답 완료' : hasEnded ? '설문 종료' : !hasStarted ? '시작 전' : '응답 제출'}
+              </Button>
             </form>
-            {total > 0 && (
+            {canViewResults && total > 0 && (
               <div className="mt-6 space-y-3">
                 <p className="font-medium">총 응답자 {total}명</p>
                 {question.survey_options.map((o) => (
@@ -208,6 +230,11 @@ export default async function PostDetail({
                   </div>
                 ))}
               </div>
+            )}
+            {hasEnded && !isSurveyManager && (
+              <p className="mt-5 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                종료된 설문 결과는 SUPER_ADMIN과 TBM_ADMIN만 조회할 수 있습니다.
+              </p>
             )}
           </CardContent>
         </Card>
