@@ -8,13 +8,13 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from '@/components/ui/native-select';
-import { requireUser } from '@/lib/auth/authorization';
+import { requireRole } from '@/lib/auth/authorization';
 export default async function PostsPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; type?: string; page?: string }>;
 }) {
-  const { supabase } = await requireUser();
+  const { supabase, roles } = await requireRole(['SUPER_ADMIN', 'VIEWER']);
   const p = await searchParams;
   const page = Math.max(1, Number(p.page) || 1);
   const size = 12;
@@ -44,10 +44,12 @@ export default async function PostsPage({
             공지, 자료, 영상과 설문을 확인하세요.
           </p>
         </div>
-        <Button nativeButton={false} render={<Link href="/posts/new" />}>
-          <Plus />
-          글쓰기
-        </Button>
+        {roles.includes('SUPER_ADMIN') && (
+          <Button nativeButton={false} render={<Link href="/posts/new" />}>
+            <Plus />
+            글쓰기
+          </Button>
+        )}
       </div>
       <Card className="mb-4 shadow-none">
         <CardContent className="p-4">
@@ -69,7 +71,7 @@ export default async function PostsPage({
                 </NativeSelectOption>
               ))}
             </NativeSelect>
-            <Button>검색</Button>
+            <Button type="submit">검색</Button>
           </form>
         </CardContent>
       </Card>

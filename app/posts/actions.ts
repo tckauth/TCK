@@ -2,7 +2,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/authorization';
+import { requireRole } from '@/lib/auth/authorization';
 export type PostResult = { ok: boolean; message: string };
 const schema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -23,7 +23,7 @@ export async function createPost(
   _: PostResult,
   formData: FormData,
 ): Promise<PostResult> {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireRole(['SUPER_ADMIN']);
   const parsed = schema.safeParse({
     title: formData.get('title'),
     content: formData.get('content'),
@@ -133,7 +133,7 @@ export async function createPost(
   redirect(`/posts/${post.id}`);
 }
 export async function deletePost(postId: string) {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireRole(['SUPER_ADMIN']);
   const { data: post } = await supabase
     .from('posts')
     .select('author_id')
@@ -156,7 +156,7 @@ export async function deletePost(postId: string) {
   redirect('/posts');
 }
 export async function updatePost(postId: string, formData: FormData) {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireRole(['SUPER_ADMIN']);
   const { data: post } = await supabase
     .from('posts')
     .select('author_id')
@@ -184,7 +184,7 @@ export async function updatePost(postId: string, formData: FormData) {
   redirect(`/posts/${postId}`);
 }
 export async function submitSurvey(surveyId: string, formData: FormData) {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireRole(['SUPER_ADMIN']);
   const selected = formData
     .getAll('option')
     .filter((v): v is string => typeof v === 'string');

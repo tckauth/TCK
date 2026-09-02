@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PostForm } from '@/components/posts/post-form';
-export default function NewPostPage() {
+import { requireRole } from '@/lib/auth/authorization';
+export default async function NewPostPage() {
+  await requireRole(['SUPER_ADMIN']);
   return (
     <div className="mx-auto max-w-3xl">
       <p className="text-sm font-medium text-primary">COMMUNITY</p>
