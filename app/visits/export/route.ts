@@ -4,8 +4,8 @@ const csv = (value: string | number | boolean | null | undefined) =>
 export async function GET(request: Request) {
   const { supabase } = await requireRole([
     'SUPER_ADMIN',
-    'ADMIN',
-    'TBM_MANAGER',
+    'TBM_ADMIN',
+    'VIEWER',
   ]);
   const url = new URL(request.url);
   let query = supabase

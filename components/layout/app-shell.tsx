@@ -19,17 +19,19 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { logout } from '@/app/(auth)/actions';
 import type { AppRole } from '@/types/database';
 
-const links = [
-  ['/dashboard', '대시보드', LayoutDashboard],
-  ['/visits', '방문/공사 현황', ClipboardCheck],
-  ['/visits/new', '방문/공사 등록', CalendarPlus],
-  ['/board', '현황판', Monitor],
-  ['/posts', '게시판', BookOpen],
-  ['/admin/users', '사용자 관리', Users],
-  ['/admin/roles', '권한 관리', ShieldCheck],
-  ['/admin/settings', '서비스 설정', SlidersHorizontal],
-  ['/admin/logs', '시스템 로그', Activity],
-  ['/settings', '내 설정', Settings],
+const links: ReadonlyArray<
+  readonly [string, string, typeof LayoutDashboard, AppRole[]]
+> = [
+  ['/dashboard', '대시보드', LayoutDashboard, ['SUPER_ADMIN', 'AUDIT_ADMIN', 'APPR_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER']],
+  ['/visits', '방문/공사 현황', ClipboardCheck, ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER']],
+  ['/visits/new', '방문/공사 등록', CalendarPlus, ['SUPER_ADMIN', 'TBM_ADMIN', 'VISITER']],
+  ['/board', '현황판', Monitor, ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER']],
+  ['/posts', '게시판', BookOpen, ['SUPER_ADMIN', 'VIEWER']],
+  ['/admin/users', '사용자 관리', Users, ['SUPER_ADMIN', 'APPR_ADMIN']],
+  ['/admin/roles', '권한 관리', ShieldCheck, ['SUPER_ADMIN']],
+  ['/admin/settings', '서비스 설정', SlidersHorizontal, ['SUPER_ADMIN']],
+  ['/admin/logs', '시스템 로그', Activity, ['SUPER_ADMIN', 'AUDIT_ADMIN']],
+  ['/settings', '내 설정', Settings, ['SUPER_ADMIN', 'AUDIT_ADMIN', 'APPR_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER']],
 ] as const;
 export function AppShell({
   children,
@@ -54,7 +56,11 @@ export function AppShell({
           TCK Safety Hub
         </Link>
         <nav className="flex-1 space-y-1 p-3">
-          {links.map(([href, label, Icon]) => (
+          {links
+            .filter(([, , , allowed]) =>
+              roles.some((role) => allowed.includes(role)),
+            )
+            .map(([href, label, Icon]) => (
             <Link
               key={href}
               href={href}
@@ -64,7 +70,7 @@ export function AppShell({
               {label}
               <ChevronRight className="ml-auto size-3 opacity-40" />
             </Link>
-          ))}
+            ))}
         </nav>
         <div className="border-t border-white/10 p-4 text-xs text-white/50">
           Cloudflare · Supabase
@@ -98,7 +104,12 @@ export function AppShell({
               </p>
             </div>
             <form action={logout}>
-              <Button variant="ghost" size="icon" aria-label="로그아웃">
+              <Button
+                type="submit"
+                variant="ghost"
+                size="icon"
+                aria-label="로그아웃"
+              >
                 <LogOut />
               </Button>
             </form>

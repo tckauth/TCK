@@ -8,15 +8,23 @@ import type { AppRole } from '@/types/database';
 const userSchema = z.object({
   email: z.email().max(254),
   fullName: z.string().trim().min(2).max(80),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'TBM_MANAGER', 'VIEWER', 'EXTERNAL']),
+  role: z.enum([
+    'SUPER_ADMIN',
+    'AUDIT_ADMIN',
+    'APPR_ADMIN',
+    'TBM_ADMIN',
+    'VIEWER',
+    'VISITER',
+  ]),
 });
 export type ActionResult = { ok: boolean; message: string };
 const managedRoleSchema = z.enum([
   'SUPER_ADMIN',
-  'ADMIN',
-  'TBM_MANAGER',
+  'AUDIT_ADMIN',
+  'APPR_ADMIN',
+  'TBM_ADMIN',
   'VIEWER',
-  'EXTERNAL',
+  'VISITER',
 ]);
 async function audit(
   actor: string,
@@ -37,7 +45,7 @@ export async function createUser(
   _: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { user } = await requireRole(['SUPER_ADMIN', 'ADMIN']);
+  const { user } = await requireRole(['SUPER_ADMIN']);
   const parsed = userSchema.safeParse({
     email: formData.get('email'),
     fullName: formData.get('fullName'),
@@ -54,11 +62,8 @@ export async function createUser(
       (row) => (row.roles as unknown as { name: AppRole }).name,
     );
   })();
-  if (
-    !actorRoles.includes('SUPER_ADMIN') &&
-    ['SUPER_ADMIN', 'ADMIN'].includes(parsed.data.role)
-  )
-    return { ok: false, message: '해당 관리자 역할을 부여할 권한이 없습니다.' };
+  if (!actorRoles.includes('SUPER_ADMIN'))
+    return { ok: false, message: '사용자를 생성할 권한이 없습니다.' };
   const admin = createAdminClient();
   const password = crypto.randomUUID() + 'aA1!';
   const { data, error } = await admin.auth.admin.createUser({
@@ -100,13 +105,13 @@ export async function createUser(
 export async function setUserRole(userId: string, formData: FormData) {
   const { user, roles: actorRoles } = await requireRole([
     'SUPER_ADMIN',
-    'ADMIN',
+    'APPR_ADMIN',
   ]);
   const parsed = managedRoleSchema.safeParse(formData.get('role'));
   if (!parsed.success) return;
   const isSuper = actorRoles.includes('SUPER_ADMIN');
   if (user.id === userId && !isSuper) return;
-  if (!isSuper && ['SUPER_ADMIN', 'ADMIN'].includes(parsed.data)) return;
+  if (!isSuper && !['VIEWER', 'VISITER'].includes(parsed.data)) return;
 
   const admin = createAdminClient();
   const { data: current } = await admin
@@ -116,7 +121,10 @@ export async function setUserRole(userId: string, formData: FormData) {
   const currentRoles = (current ?? []).map(
     (row) => (row.roles as unknown as { name: AppRole }).name,
   );
-  if (!isSuper && currentRoles.some((r) => ['SUPER_ADMIN', 'ADMIN'].includes(r)))
+  if (
+    !isSuper &&
+    !currentRoles.every((r) => ['VIEWER', 'VISITER'].includes(r))
+  )
     return;
 
   const { data: targetRole } = await admin
@@ -146,7 +154,7 @@ export async function setUserStatus(
   userId: string,
   status: 'ACTIVE' | 'INACTIVE',
 ) {
-  const { user } = await requireRole(['SUPER_ADMIN', 'ADMIN']);
+  const { user } = await requireRole(['SUPER_ADMIN']);
   if (user.id === userId && status === 'INACTIVE') return;
   const admin = createAdminClient();
   const { data: target } = await admin
@@ -165,15 +173,26 @@ export async function setUserStatus(
   revalidatePath('/admin/users');
 }
 export async function approveUser(userId: string) {
-  const { user } = await requireRole(['TBM_MANAGER']);
+  const { user, roles: actorRoles } = await requireRole([
+    'SUPER_ADMIN',
+    'APPR_ADMIN',
+  ]);
   if (user.id === userId) return;
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('status,email')
+    .select('status,email,user_roles(roles(name))')
     .eq('id', userId)
     .single();
   if (!profile || profile.status !== 'PENDING') return;
+  const targetRoles = (
+    profile.user_roles as unknown as Array<{ roles: { name: AppRole } | null }>
+  ).flatMap((row) => (row.roles?.name ? [row.roles.name] : []));
+  if (
+    !actorRoles.includes('SUPER_ADMIN') &&
+    !targetRoles.every((role) => role === 'VISITER')
+  )
+    return;
   await admin
     .from('profiles')
     .update({

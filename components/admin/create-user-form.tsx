@@ -27,7 +27,14 @@ export function CreateUserForm() {
       <div>
         <Label htmlFor="role">역할</Label>
         <NativeSelect id="role" name="role" defaultValue="VIEWER">
-          {['EXTERNAL', 'VIEWER', 'TBM_MANAGER', 'ADMIN', 'SUPER_ADMIN'].map(
+          {[
+            'VISITER',
+            'VIEWER',
+            'TBM_ADMIN',
+            'APPR_ADMIN',
+            'AUDIT_ADMIN',
+            'SUPER_ADMIN',
+          ].map(
             (role) => (
               <NativeSelectOption key={role} value={role}>
                 {role}

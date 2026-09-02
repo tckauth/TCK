@@ -14,7 +14,7 @@ export default async function LogsPage({
 }: {
   searchParams: Promise<{ action?: string }>;
 }) {
-  const { supabase } = await requireRole(['SUPER_ADMIN', 'ADMIN']);
+  const { supabase } = await requireRole(['SUPER_ADMIN', 'AUDIT_ADMIN']);
   const { action } = await searchParams;
   let query = supabase
     .from('audit_logs')

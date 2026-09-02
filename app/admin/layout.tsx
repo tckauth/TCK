@@ -7,8 +7,8 @@ export default async function AdminLayout({
 }) {
   const { user, roles } = await requireRole([
     'SUPER_ADMIN',
-    'ADMIN',
-    'TBM_MANAGER',
+    'APPR_ADMIN',
+    'AUDIT_ADMIN',
   ]);
   return (
     <AppShell email={user.email ?? '관리자'} roles={roles}>

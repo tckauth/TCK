@@ -2,7 +2,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth/authorization';
 export async function updateSettings(formData: FormData) {
-  const { supabase, user } = await requireRole(['SUPER_ADMIN', 'ADMIN']);
+  const { supabase, user } = await requireRole(['SUPER_ADMIN']);
   const titleValue = formData.get('site_title');
   const title = (typeof titleValue === 'string' ? titleValue : '').slice(
     0,

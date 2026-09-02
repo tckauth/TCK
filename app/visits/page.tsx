@@ -35,7 +35,7 @@ export default async function VisitsPage({
   const { supabase, user } = await requireUser();
   const roles = await getRoles(user.id);
   const staff = roles.some((r) =>
-    ['SUPER_ADMIN', 'ADMIN', 'TBM_MANAGER'].includes(r),
+    ['SUPER_ADMIN', 'TBM_ADMIN'].includes(r),
   );
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);

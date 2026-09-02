@@ -1,9 +1,10 @@
 export type AppRole =
   | 'SUPER_ADMIN'
-  | 'ADMIN'
-  | 'TBM_MANAGER'
+  | 'AUDIT_ADMIN'
+  | 'APPR_ADMIN'
+  | 'TBM_ADMIN'
   | 'VIEWER'
-  | 'EXTERNAL';
+  | 'VISITER';
 export type UserStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 export interface Profile {
   id: string;

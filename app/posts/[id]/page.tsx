@@ -30,7 +30,7 @@ export default async function PostDetail({
   const roles = await getRoles(user.id);
   const canDelete =
     post.author_id === user.id ||
-    roles.some((r) => ['SUPER_ADMIN', 'ADMIN'].includes(r));
+    roles.includes('SUPER_ADMIN');
   const attachments = post.post_attachments as Array<{
     id: string;
     file_name: string;
@@ -64,7 +64,7 @@ export default async function PostDetail({
   if (
     survey &&
     (survey.is_results_public ||
-      roles.some((r) => ['SUPER_ADMIN', 'ADMIN', 'TBM_MANAGER'].includes(r)))
+      roles.includes('SUPER_ADMIN'))
   ) {
     const { data: answers } = await supabase
       .from('survey_answers')

@@ -1,6 +1,6 @@
 'use server';
 import { revalidatePath } from 'next/cache';
-import { requireRole, requireUser, getRoles } from '@/lib/auth/authorization';
+import { requireRole, getRoles } from '@/lib/auth/authorization';
 import { visitSchema } from '@/lib/validation/visit';
 export type VisitResult = { ok: boolean; message: string };
 const formVisit = (formData: FormData) => ({
@@ -16,7 +16,11 @@ export async function createVisit(
   _: VisitResult,
   formData: FormData,
 ): Promise<VisitResult> {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireRole([
+    'SUPER_ADMIN',
+    'TBM_ADMIN',
+    'VISITER',
+  ]);
   const parsed = visitSchema.safeParse(formVisit(formData));
   if (!parsed.success)
     return {
@@ -53,8 +57,7 @@ export async function createVisit(
 export async function changeTbm(visitId: string, value: 'O' | 'X' | null) {
   const { supabase, user } = await requireRole([
     'SUPER_ADMIN',
-    'ADMIN',
-    'TBM_MANAGER',
+    'TBM_ADMIN',
   ]);
   const { data: before } = await supabase
     .from('visits')
@@ -82,10 +85,14 @@ export async function updateVisit(
   _: VisitResult,
   formData: FormData,
 ): Promise<VisitResult> {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireRole([
+    'SUPER_ADMIN',
+    'TBM_ADMIN',
+    'VISITER',
+  ]);
   const roles = await getRoles(user.id);
   const staff = roles.some((r) =>
-    ['SUPER_ADMIN', 'ADMIN', 'TBM_MANAGER'].includes(r),
+    ['SUPER_ADMIN', 'TBM_ADMIN'].includes(r),
   );
   const parsed = visitSchema.safeParse(formVisit(formData));
   if (!parsed.success) return { ok: false, message: '입력값을 확인하세요.' };
@@ -120,8 +127,7 @@ export async function updateVisit(
 export async function deleteVisit(visitId: string) {
   const { supabase, user } = await requireRole([
     'SUPER_ADMIN',
-    'ADMIN',
-    'TBM_MANAGER',
+    'TBM_ADMIN',
   ]);
   const { error } = await supabase
     .from('visits')

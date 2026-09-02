@@ -37,8 +37,7 @@ export default async function UsersPage({
 }) {
   const { supabase, roles } = await requireRole([
     'SUPER_ADMIN',
-    'ADMIN',
-    'TBM_MANAGER',
+    'APPR_ADMIN',
   ]);
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
@@ -53,15 +52,17 @@ export default async function UsersPage({
       `full_name.ilike.%${params.q.replaceAll(/[%,()]/g, '')}%,email.ilike.%${params.q.replaceAll(/[%,()]/g, '')}%`,
     );
   const { data, count } = await query;
-  const canEdit = roles.some((r) => r === 'ADMIN' || r === 'SUPER_ADMIN');
-  const canApprove = roles.includes('TBM_MANAGER');
+  const canEdit = roles.some(
+    (r) => r === 'APPR_ADMIN' || r === 'SUPER_ADMIN',
+  );
+  const canApprove = canEdit;
   const isSuper = roles.includes('SUPER_ADMIN');
   const pages = Math.max(1, Math.ceil((count ?? 0) / size));
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-primary">ADMIN</p>
+          <p className="text-sm font-medium text-primary">ACCESS APPROVAL</p>
           <h1 className="text-3xl font-bold tracking-tight">사용자 관리</h1>
           <p className="mt-2 text-muted-foreground">
             {count ?? 0}개의 사용자 계정
@@ -125,7 +126,7 @@ export default async function UsersPage({
                       </TableCell>
                       <TableCell>
                         {canEdit &&
-                        (isSuper || !['SUPER_ADMIN', 'ADMIN'].includes(role)) ? (
+                        (isSuper || ['VIEWER', 'VISITER'].includes(role)) ? (
                           <form
                             action={setUserRole.bind(null, profile.id)}
                             className="flex min-w-44 gap-2"
@@ -136,17 +137,23 @@ export default async function UsersPage({
                               aria-label={`${profile.email} 역할`}
                             >
                               {[
-                                'EXTERNAL',
+                                'VISITER',
                                 'VIEWER',
-                                'TBM_MANAGER',
-                                ...(isSuper ? ['ADMIN', 'SUPER_ADMIN'] : []),
+                                ...(isSuper
+                                  ? [
+                                      'TBM_ADMIN',
+                                      'APPR_ADMIN',
+                                      'AUDIT_ADMIN',
+                                      'SUPER_ADMIN',
+                                    ]
+                                  : []),
                               ].map((item) => (
                                 <NativeSelectOption key={item} value={item}>
                                   {item}
                                 </NativeSelectOption>
                               ))}
                             </NativeSelect>
-                            <Button variant="outline" size="sm">
+                            <Button type="submit" variant="outline" size="sm">
                               저장
                             </Button>
                           </form>
@@ -185,7 +192,9 @@ export default async function UsersPage({
                             className="inline"
                             action={approveUser.bind(null, profile.id)}
                           >
-                            <Button size="sm">가입 승인</Button>
+                            <Button type="submit" size="sm">
+                              가입 승인
+                            </Button>
                           </form>
                         )}
                         {canEdit && profile.status !== 'PENDING' && (
@@ -199,7 +208,7 @@ export default async function UsersPage({
                                 : 'ACTIVE',
                             )}
                           >
-                            <Button variant="ghost" size="sm">
+                            <Button type="submit" variant="ghost" size="sm">
                               {profile.status === 'ACTIVE'
                                 ? '비활성화'
                                 : '활성화'}
@@ -212,6 +221,7 @@ export default async function UsersPage({
                             action={deleteUser.bind(null, profile.id)}
                           >
                             <Button
+                              type="submit"
                               variant="ghost"
                               size="sm"
                               className="text-destructive"

@@ -2,7 +2,7 @@ import { Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireRole } from '@/lib/auth/authorization';
 export default async function RolesPage() {
-  const { supabase } = await requireRole(['SUPER_ADMIN', 'ADMIN']);
+  const { supabase } = await requireRole(['SUPER_ADMIN']);
   const { data } = await supabase
     .from('roles')
     .select('*, role_permissions(permissions(name, description))')

@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { requireRole } from '@/lib/auth/authorization';
 import { updateSettings } from './actions';
 export default async function SettingsPage() {
-  const { supabase } = await requireRole(['SUPER_ADMIN', 'ADMIN']);
+  const { supabase } = await requireRole(['SUPER_ADMIN']);
   const { data } = await supabase.from('system_settings').select('key,value');
   const settings = Object.fromEntries(
     (data ?? []).map((row) => [row.key, row.value]),

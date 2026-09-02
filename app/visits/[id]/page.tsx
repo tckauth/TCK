@@ -14,7 +14,7 @@ export default async function VisitDetail({
   const { supabase, user } = await requireUser();
   const roles = await getRoles(user.id);
   const staff = roles.some((r) =>
-    ['SUPER_ADMIN', 'ADMIN', 'TBM_MANAGER'].includes(r),
+    ['SUPER_ADMIN', 'TBM_ADMIN'].includes(r),
   );
   const [{ data: visit }, { data: managers }] = await Promise.all([
     supabase
