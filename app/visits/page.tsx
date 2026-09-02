@@ -137,7 +137,7 @@ export default async function VisitsPage({
                 </NativeSelectOption>
               ))}
             </NativeSelect>
-            <Button>검색</Button>
+            <Button type="submit">검색</Button>
             <NativeSelect
               name="construction"
               defaultValue={params.construction ?? ''}

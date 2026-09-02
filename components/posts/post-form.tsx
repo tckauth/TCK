@@ -120,7 +120,7 @@ export function PostForm() {
           {state.message}
         </output>
       )}
-      <Button size="lg" disabled={pending}>
+      <Button type="submit" size="lg" disabled={pending}>
         {pending && <LoaderCircle className="animate-spin" />}게시글 등록
       </Button>
     </form>

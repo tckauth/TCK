@@ -9,6 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { requireRole } from '@/lib/auth/authorization';
+import { formatSeoulDateTime } from '@/lib/date-time';
 export default async function LogsPage({
   searchParams,
 }: {
@@ -56,7 +57,7 @@ export default async function LogsPage({
                     <TableCell>{log.target_type ?? '—'}</TableCell>
                     <TableCell>{log.description ?? '—'}</TableCell>
                     <TableCell>
-                      {new Date(log.created_at).toLocaleString('ko-KR')}
+                      {formatSeoulDateTime(log.created_at)}
                     </TableCell>
                   </TableRow>
                 ))}

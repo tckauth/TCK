@@ -136,7 +136,7 @@ export function VisitForm({
           {state.message}
         </output>
       )}
-      <Button size="lg" className="h-12 sm:col-span-2" disabled={pending}>
+      <Button type="submit" size="lg" className="h-12 sm:col-span-2" disabled={pending}>
         {pending && <LoaderCircle className="animate-spin" />}
         {initial ? '수정 저장' : '등록하기'}
       </Button>

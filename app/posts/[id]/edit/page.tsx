@@ -54,7 +54,7 @@ export default async function EditPost({
                 maxLength={20000}
               />
             </div>
-            <Button>수정 저장</Button>
+            <Button type="submit">수정 저장</Button>
           </form>
         </CardContent>
       </Card>

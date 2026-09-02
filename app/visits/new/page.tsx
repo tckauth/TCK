@@ -4,12 +4,7 @@ import { createVisit } from '../actions';
 import { requireUser } from '@/lib/auth/authorization';
 export default async function NewVisitPage() {
   const { supabase } = await requireUser();
-  const { data: managers } = await supabase
-    .from('profiles')
-    .select('id,full_name,email')
-    .eq('status', 'ACTIVE')
-    .order('full_name')
-    .limit(200);
+  const { data: managers } = await supabase.rpc('list_tck_managers');
   return (
     <div className="mx-auto max-w-3xl">
       <p className="text-sm font-medium text-primary">VISITER ACCESS</p>

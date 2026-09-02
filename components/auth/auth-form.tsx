@@ -51,6 +51,8 @@ export function AuthForm({
             name="password"
             type="password"
             minLength={8}
+            pattern={mode === 'signup' ? '(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,72}' : undefined}
+            title={mode === 'signup' ? '대문자, 소문자, 숫자, 특수문자를 각각 1개 이상 포함한 8자 이상' : undefined}
             required
             autoComplete={
               mode === 'login' ? 'current-password' : 'new-password'
@@ -58,7 +60,7 @@ export function AuthForm({
           />
           {mode === 'signup' && (
             <p className="text-xs text-muted-foreground">
-              비밀번호는 8자 이상 입력해 주세요.
+              8자 이상이며 대문자·소문자·숫자·특수문자를 각각 1개 이상 포함해야 합니다.
             </p>
           )}
         </div>

@@ -10,6 +10,7 @@ import { requireUser, getRoles } from '@/lib/auth/authorization';
 import { DeletePostButton } from '@/components/posts/delete-post-button';
 import { submitSurvey } from '../actions';
 import { getRequestTimestamp } from '@/lib/request-time';
+import { formatSeoulDateTime } from '@/lib/date-time';
 export default async function PostDetail({
   params,
 }: {
@@ -121,7 +122,7 @@ export default async function PostDetail({
             } | null
           )?.full_name ??
             (post.profiles as unknown as { email: string } | null)?.email}{' '}
-          · {new Date(post.created_at).toLocaleString('ko-KR')}
+          · {formatSeoulDateTime(post.created_at)}
         </p>
       </div>
       <Card className="shadow-none">
@@ -182,7 +183,7 @@ export default async function PostDetail({
                 {hasEnded ? '종료' : hasStarted ? '진행 중' : '시작 전'}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                {survey.starts_at ? new Date(survey.starts_at).toLocaleString('ko-KR') : '즉시'} ~ {survey.ends_at ? new Date(survey.ends_at).toLocaleString('ko-KR') : '종료일 없음'}
+                {survey.starts_at ? formatSeoulDateTime(survey.starts_at) : '즉시'} ~ {survey.ends_at ? formatSeoulDateTime(survey.ends_at) : '종료일 없음'}
               </span>
             </div>
             <h2 className="mt-3 text-xl font-semibold">
@@ -213,7 +214,7 @@ export default async function PostDetail({
                     )}
                   </label>
                 ))}
-              <Button disabled={!hasStarted || hasEnded || hasResponded}>
+              <Button type="submit" disabled={!hasStarted || hasEnded || hasResponded}>
                 {hasResponded ? '응답 완료' : hasEnded ? '설문 종료' : !hasStarted ? '시작 전' : '응답 제출'}
               </Button>
             </form>

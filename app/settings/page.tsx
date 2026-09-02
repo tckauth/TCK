@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireUser } from '@/lib/auth/authorization';
+import { PasswordChangeForm } from '@/components/settings/password-change-form';
 export default async function MySettingsPage() {
   const { user } = await requireUser();
   return (
@@ -24,6 +25,10 @@ export default async function MySettingsPage() {
             </p>
           </div>
         </CardContent>
+      </Card>
+      <Card className="mt-6 shadow-none">
+        <CardHeader><CardTitle>비밀번호 변경</CardTitle></CardHeader>
+        <CardContent><PasswordChangeForm /></CardContent>
       </Card>
     </div>
   );

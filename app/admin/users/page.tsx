@@ -30,6 +30,7 @@ import {
   deleteUser,
   setUserRole,
 } from './actions';
+import { formatSeoulDate, formatSeoulDateTime } from '@/lib/date-time';
 export default async function UsersPage({
   searchParams,
 }: {
@@ -175,15 +176,11 @@ export default async function UsersPage({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {new Date(profile.created_at).toLocaleDateString(
-                          'ko-KR',
-                        )}
+                        {formatSeoulDate(profile.created_at)}
                       </TableCell>
                       <TableCell>
                         {profile.last_sign_in_at
-                          ? new Date(
-                              profile.last_sign_in_at,
-                            ).toLocaleDateString('ko-KR')
+                          ? formatSeoulDateTime(profile.last_sign_in_at)
                           : '—'}
                       </TableCell>
                       <TableCell className="text-right">

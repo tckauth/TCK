@@ -2,14 +2,21 @@ import Link from 'next/link';
 import { ArrowRight, CheckCircle2, ShieldCheck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase/server';
 
-const stats = [
-  { label: '활성 사용자', value: '1,284', note: '+8.2%', icon: Users },
-  { label: '관리 작업', value: '47', note: '오늘', icon: ShieldCheck },
-  { label: '서비스 상태', value: '정상', note: '99.99%', icon: CheckCircle2 },
-];
-
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('public_home_stats');
+  const current = (data ?? {}) as {
+    active_users?: number;
+    admin_actions_today?: number;
+    service_status?: string;
+  };
+  const stats = [
+    { label: '활성 사용자', value: error ? '—' : String(current.active_users ?? 0), note: '현재', icon: Users },
+    { label: '관리 작업', value: error ? '—' : String(current.admin_actions_today ?? 0), note: '오늘', icon: ShieldCheck },
+    { label: '서비스 상태', value: error ? '점검 중' : (current.service_status ?? '정상'), note: '실시간', icon: CheckCircle2 },
+  ];
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b bg-background/90 backdrop-blur">
@@ -79,26 +86,6 @@ export default function Home() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-          <div className="mt-3 rounded-xl border bg-muted/35 p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="font-medium">최근 활동</p>
-              <span className="text-xs text-muted-foreground">감사 로그</span>
-            </div>
-            {[
-              ['사용자 역할이 변경되었습니다', '2분 전'],
-              ['서비스 설정이 업데이트되었습니다', '18분 전'],
-              ['새 사용자가 가입했습니다', '1시간 전'],
-            ].map(([label, time]) => (
-              <div
-                key={label}
-                className="flex items-center gap-3 border-t py-3 text-sm first:border-0"
-              >
-                <span className="size-2 rounded-full bg-primary/70" />
-                <span className="flex-1">{label}</span>
-                <span className="text-xs text-muted-foreground">{time}</span>
-              </div>
             ))}
           </div>
         </div>

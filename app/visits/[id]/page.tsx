@@ -23,12 +23,7 @@ export default async function VisitDetail({
       .eq('id', id)
       .is('deleted_at', null)
       .single(),
-    supabase
-      .from('profiles')
-      .select('id,full_name,email')
-      .eq('status', 'ACTIVE')
-      .order('full_name')
-      .limit(200),
+    supabase.rpc('list_tck_managers'),
   ]);
   if (!visit) notFound();
   const canEdit = staff || visit.created_by === user.id;

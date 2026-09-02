@@ -52,7 +52,7 @@ export function CreateUserForm() {
           {state.message}
         </p>
       )}
-      <Button disabled={pending}>
+      <Button type="submit" disabled={pending}>
         {pending && <LoaderCircle className="animate-spin" />}사용자 생성
       </Button>
     </form>

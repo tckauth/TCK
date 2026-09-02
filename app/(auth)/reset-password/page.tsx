@@ -18,8 +18,8 @@ export default function ResetPasswordPage() {
     const data = new FormData(event.currentTarget);
     const value = data.get('password');
     const password = typeof value === 'string' ? value : '';
-    if (password.length < 8) {
-      setMessage('비밀번호는 8자 이상이어야 합니다.');
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,72}$/.test(password)) {
+      setMessage('대문자·소문자·숫자·특수문자를 각각 1개 이상 포함한 8자 이상의 비밀번호를 입력하세요.');
       setBusy(false);
       return;
     }
@@ -45,16 +45,21 @@ export default function ResetPasswordPage() {
             name="password"
             type="password"
             minLength={8}
+            pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,72}"
+            title="대문자, 소문자, 숫자, 특수문자를 각각 1개 이상 포함한 8자 이상"
             required
             autoComplete="new-password"
           />
+          <p className="text-xs text-muted-foreground">
+            8자 이상이며 대문자·소문자·숫자·특수문자를 각각 1개 이상 포함해야 합니다.
+          </p>
         </div>
         {message && (
           <p role="alert" className="text-sm text-destructive">
             {message}
           </p>
         )}
-        <Button className="w-full" size="lg" disabled={busy}>
+        <Button type="submit" className="w-full" size="lg" disabled={busy}>
           비밀번호 변경
         </Button>
       </form>

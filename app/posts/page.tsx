@@ -9,6 +9,7 @@ import {
   NativeSelectOption,
 } from '@/components/ui/native-select';
 import { requireRole } from '@/lib/auth/authorization';
+import { formatSeoulDate } from '@/lib/date-time';
 export default async function PostsPage({
   searchParams,
 }: {
@@ -102,7 +103,7 @@ export default async function PostsPage({
                     </p>
                     <p className="mt-3 text-xs text-muted-foreground">
                       {author?.full_name ?? author?.email} ·{' '}
-                      {new Date(post.created_at).toLocaleDateString('ko-KR')} ·
+                      {formatSeoulDate(post.created_at)} ·
                       조회 {post.view_count}
                     </p>
                   </div>

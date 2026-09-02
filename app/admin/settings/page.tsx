@@ -47,7 +47,7 @@ export default async function SettingsPage() {
                 defaultChecked={settings.maintenance_mode === true}
               />
             </div>
-            <Button>설정 저장</Button>
+            <Button type="submit">설정 저장</Button>
           </form>
         </CardContent>
       </Card>
