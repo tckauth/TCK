@@ -1,6 +1,7 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth/authorization';
+import { invalidateRuntimeSettings } from '@/lib/settings';
 export async function updateSettings(formData: FormData) {
   const { supabase, user } = await requireRole(['SUPER_ADMIN']);
   const titleValue = formData.get('site_title');
@@ -42,6 +43,7 @@ export async function updateSettings(formData: FormData) {
     target_type: 'SYSTEM',
     description: '서비스 설정을 변경했습니다.',
   });
+  invalidateRuntimeSettings();
   revalidatePath('/admin/settings');
   revalidatePath('/', 'layout');
 }

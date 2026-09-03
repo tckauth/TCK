@@ -18,8 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { logout } from '@/app/(auth)/actions';
 import type { AppRole } from '@/types/database';
-import { createClient } from '@/lib/supabase/server';
 import { IdleSession } from '@/components/auth/idle-session';
+import { getRuntimeSettings } from '@/lib/settings';
 
 const links: ReadonlyArray<
   readonly [string, string, typeof LayoutDashboard, AppRole[]]
@@ -44,20 +44,11 @@ export async function AppShell({
   email: string;
   roles: AppRole[];
 }) {
-  const supabase = await createClient();
-  const { data: rows } = await supabase
-    .from('system_settings')
-    .select('key,value')
-    .in('key', ['site_title', 'session_timeout_minutes']);
-  const settings = Object.fromEntries((rows ?? []).map((row) => [row.key, row.value]));
-  const siteTitle = typeof settings.site_title === 'string' && settings.site_title.trim()
-    ? settings.site_title
-    : 'TCK Safety Hub';
-  const sessionTimeout = Number(settings.session_timeout_minutes) || 10;
+  const settings = await getRuntimeSettings();
   const initial = email.slice(0, 1).toUpperCase();
   return (
     <div className="min-h-screen bg-muted/25 md:grid md:grid-cols-[250px_1fr]">
-      <IdleSession minutes={sessionTimeout} />
+      <IdleSession minutes={settings.sessionTimeoutMinutes} />
       <aside className="hidden border-r bg-[oklch(0.19_0.045_256)] text-white md:flex md:flex-col">
         <Link
           href="/dashboard"
@@ -66,7 +57,7 @@ export async function AppShell({
           <span className="grid size-9 place-items-center rounded-xl bg-white text-primary">
             <ShieldCheck className="size-5" />
           </span>
-          {siteTitle}
+          {settings.siteTitle}
         </Link>
         <nav className="flex-1 space-y-1 p-3">
           {links
