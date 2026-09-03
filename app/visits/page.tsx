@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import { requireUser, getRoles } from '@/lib/auth/authorization';
 import { TbmControl } from '@/components/visits/tbm-control';
+import { getSeoulDate } from '@/lib/date-time';
 type Params = {
   q?: string;
   from?: string;
@@ -27,6 +28,7 @@ type Params = {
   tbm?: string;
   page?: string;
 };
+type Manager = { id: string; full_name: string | null; email: string };
 export default async function VisitsPage({
   searchParams,
 }: {
@@ -38,12 +40,15 @@ export default async function VisitsPage({
     ['SUPER_ADMIN', 'TBM_ADMIN'].includes(r),
   );
   const params = await searchParams;
+  const today = getSeoulDate();
+  const from = params.from ?? today;
+  const to = params.to ?? today;
   const page = Math.max(1, Number(params.page) || 1);
   const size = 20;
   let query = supabase
     .from('visits')
     .select(
-      'id,visit_date,company_name,purpose,visitor_count,construction_location,tck_manager_id,construction_yn,tbm_yn,created_by,created_at,profiles!visits_tck_manager_id_fkey(full_name,email)',
+      'id,visit_date,visit_end_date,company_name,purpose,visitor_count,construction_location,tck_manager_id,construction_yn,tbm_yn,created_by,created_at',
       { count: 'exact' },
     )
     .is('deleted_at', null)
@@ -55,8 +60,7 @@ export default async function VisitsPage({
       'company_name',
       `%${params.q.replaceAll(/[%,()]/g, '')}%`,
     );
-  if (params.from) query = query.gte('visit_date', params.from);
-  if (params.to) query = query.lte('visit_date', params.to);
+  query = query.lte('visit_date', to).gte('visit_end_date', from);
   if (params.manager) query = query.eq('tck_manager_id', params.manager);
   if (params.construction === 'O' || params.construction === 'X')
     query = query.eq('construction_yn', params.construction === 'O');
@@ -65,13 +69,10 @@ export default async function VisitsPage({
   if (params.tbm === 'NULL') query = query.is('tbm_yn', null);
   const [{ data, count }, { data: managers }] = await Promise.all([
     query,
-    supabase
-      .from('profiles')
-      .select('id,full_name,email')
-      .eq('status', 'ACTIVE')
-      .order('full_name')
-      .limit(200),
+    supabase.rpc('list_tck_managers'),
   ]);
+  const typedManagers = (managers ?? []) as Manager[];
+  const managerById = new Map(typedManagers.map((manager) => [manager.id, manager]));
   const pages = Math.max(1, Math.ceil((count ?? 0) / size));
   const qs = (p: number) =>
     new URLSearchParams({ ...params, page: String(p) }).toString();
@@ -89,7 +90,7 @@ export default async function VisitsPage({
           {staff && (
             <a
               className={buttonVariants({ variant: 'outline' })}
-              href={`/visits/export?${new URLSearchParams(params).toString()}`}
+              href={`/visits/export?${new URLSearchParams({ ...params, from, to }).toString()}`}
             >
               <Download />
               CSV
@@ -117,13 +118,13 @@ export default async function VisitsPage({
               type="date"
               name="from"
               aria-label="시작일"
-              defaultValue={params.from}
+              defaultValue={from}
             />
             <Input
               type="date"
               name="to"
               aria-label="종료일"
-              defaultValue={params.to}
+              defaultValue={to}
             />
             <NativeSelect
               name="manager"
@@ -131,7 +132,7 @@ export default async function VisitsPage({
               className="w-full"
             >
               <NativeSelectOption value="">담당자 전체</NativeSelectOption>
-              {managers?.map((m) => (
+              {typedManagers.map((m) => (
                 <NativeSelectOption key={m.id} value={m.id}>
                   {m.full_name ?? m.email}
                 </NativeSelectOption>
@@ -162,27 +163,22 @@ export default async function VisitsPage({
       </Card>
       <div className="grid gap-3 md:hidden">
         {data?.map((v) => {
-          const manager = v.profiles as unknown as {
-            full_name: string | null;
-            email: string;
-          } | null;
+          const manager = managerById.get(v.tck_manager_id);
           return (
             <Card
               key={v.id}
-              className={
-                v.tbm_yn === 'O'
-                  ? 'border-emerald-200 bg-emerald-50/70'
-                  : v.tbm_yn === 'X'
-                    ? 'border-red-200 bg-red-50/70'
-                    : ''
-              }
+              className={!v.construction_yn
+                ? 'border-red-200 bg-red-50/70'
+                : v.tbm_yn === 'X'
+                  ? 'border-red-500 bg-red-200/80'
+                  : ''}
             >
               <CardContent className="p-4">
                 <div className="flex justify-between">
                   <div>
                     <p className="font-semibold">{v.company_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {v.visit_date} · {v.visitor_count}명
+                      {v.visit_date} ~ {v.visit_end_date} · {v.visitor_count}명
                     </p>
                   </div>
                   <Badge
@@ -221,34 +217,25 @@ export default async function VisitsPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>날짜</TableHead>
-                  <TableHead>업체명/목적</TableHead>
-                  <TableHead>인원</TableHead>
-                  <TableHead>장소</TableHead>
-                  <TableHead>담당자</TableHead>
-                  <TableHead>공사</TableHead>
-                  <TableHead>TBM</TableHead>
+                  {['방문 기간', '업체명/목적', '인원', '장소', '담당자', '공사 여부', 'TBM 여부'].map((label) => (
+                    <TableHead key={label} className="border-r bg-muted/40 last:border-r-0">{label}</TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data?.map((v) => {
-                  const manager = v.profiles as unknown as {
-                    full_name: string | null;
-                    email: string;
-                  } | null;
+                  const manager = managerById.get(v.tck_manager_id);
                   return (
                     <TableRow
                       key={v.id}
-                      className={
-                        v.tbm_yn === 'O'
-                          ? 'bg-emerald-50/70 hover:bg-emerald-100/60'
-                          : v.tbm_yn === 'X'
-                            ? 'bg-red-50/70 hover:bg-red-100/60'
-                            : ''
-                      }
+                      className={!v.construction_yn
+                        ? 'bg-red-50/80 hover:bg-red-100/80'
+                        : v.tbm_yn === 'X'
+                          ? 'bg-red-200/90 hover:bg-red-300/80'
+                          : ''}
                     >
-                      <TableCell>{v.visit_date}</TableCell>
-                      <TableCell>
+                      <TableCell className="border-r">{v.visit_date}<br />~ {v.visit_end_date}</TableCell>
+                      <TableCell className="border-r">
                         <Link
                           href={`/visits/${v.id}`}
                           className="font-medium hover:underline"
@@ -259,12 +246,12 @@ export default async function VisitsPage({
                           {v.purpose}
                         </p>
                       </TableCell>
-                      <TableCell>{v.visitor_count}명</TableCell>
-                      <TableCell>{v.construction_location}</TableCell>
-                      <TableCell>
+                      <TableCell className="border-r">{v.visitor_count}명</TableCell>
+                      <TableCell className="border-r">{v.construction_location}</TableCell>
+                      <TableCell className="border-r">
                         {manager?.full_name ?? manager?.email}
                       </TableCell>
-                      <TableCell>{v.construction_yn ? 'O' : 'X'}</TableCell>
+                      <TableCell className="border-r text-center font-semibold">{v.construction_yn ? 'O' : 'X'}</TableCell>
                       <TableCell>
                         {staff ? (
                           <TbmControl

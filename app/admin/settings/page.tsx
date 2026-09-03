@@ -34,6 +34,19 @@ export default async function SettingsPage() {
                 ).replaceAll('"', '')}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="session_timeout_minutes">로그인 유지시간 (분)</Label>
+              <Input
+                id="session_timeout_minutes"
+                name="session_timeout_minutes"
+                type="number"
+                min={1}
+                max={1440}
+                required
+                defaultValue={Number(settings.session_timeout_minutes ?? 10)}
+              />
+              <p className="text-xs text-muted-foreground">사용자 활동이 없는 상태로 이 시간이 지나면 자동 로그아웃됩니다.</p>
+            </div>
             <div className="flex items-center justify-between rounded-xl border p-4">
               <div>
                 <Label htmlFor="maintenance_mode">유지보수 모드</Label>

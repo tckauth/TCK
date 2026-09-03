@@ -9,6 +9,10 @@ export async function updateSettings(formData: FormData) {
     100,
   );
   const maintenance = formData.get('maintenance_mode') === 'on';
+  const timeoutValue = Number(formData.get('session_timeout_minutes'));
+  const sessionTimeout = Number.isInteger(timeoutValue)
+    ? Math.min(1440, Math.max(1, timeoutValue))
+    : 10;
   await supabase.from('system_settings').upsert(
     [
       {
@@ -23,6 +27,12 @@ export async function updateSettings(formData: FormData) {
         is_public: true,
         updated_by: user.id,
       },
+      {
+        key: 'session_timeout_minutes',
+        value: JSON.stringify(sessionTimeout),
+        is_public: true,
+        updated_by: user.id,
+      },
     ],
     { onConflict: 'key' },
   );
@@ -33,4 +43,5 @@ export async function updateSettings(formData: FormData) {
     description: '서비스 설정을 변경했습니다.',
   });
   revalidatePath('/admin/settings');
+  revalidatePath('/', 'layout');
 }

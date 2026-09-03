@@ -101,7 +101,8 @@ export default async function UsersPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>사용자</TableHead>
+                  <TableHead>사용자명</TableHead>
+                  <TableHead>이메일</TableHead>
                   <TableHead>역할</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>가입일</TableHead>
@@ -118,13 +119,9 @@ export default async function UsersPage({
                   return (
                     <TableRow key={profile.id}>
                       <TableCell>
-                        <p className="font-medium">
-                          {profile.full_name ?? '이름 없음'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {profile.email}
-                        </p>
+                        <p className="font-medium">{profile.full_name ?? '이름 없음'}</p>
                       </TableCell>
+                      <TableCell>{profile.email}</TableCell>
                       <TableCell>
                         {canEdit &&
                         (isSuper || ['VIEWER', 'VISITER'].includes(role)) ? (

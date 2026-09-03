@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from('visits')
     .select(
-      'visit_date,company_name,purpose,visitor_count,construction_location,construction_yn,tbm_yn,profiles!visits_tck_manager_id_fkey(full_name,email)',
+      'visit_date,visit_end_date,company_name,purpose,visitor_count,construction_location,tck_manager_id,construction_yn,tbm_yn',
     )
     .is('deleted_at', null)
     .order('visit_date', { ascending: false })
@@ -19,29 +19,33 @@ export async function GET(request: Request) {
   const from = url.searchParams.get('from');
   const to = url.searchParams.get('to');
   const q = url.searchParams.get('q');
-  if (from) query = query.gte('visit_date', from);
+  if (from) query = query.gte('visit_end_date', from);
   if (to) query = query.lte('visit_date', to);
   if (q)
     query = query.ilike('company_name', `%${q.replaceAll(/[%,()]/g, '')}%`);
-  const { data, error } = await query;
+  const [{ data, error }, { data: managers }] = await Promise.all([
+    query,
+    supabase.rpc('list_tck_managers'),
+  ]);
   if (error) return new Response('내보내기에 실패했습니다.', { status: 500 });
   const header = [
-    '날짜',
+    '시작일',
+    '종료일',
     '업체명',
     '목적',
     '방문인원',
     '장소',
     'TCK 담당자',
-    '공사유무',
+    '공사 여부',
     'TBM',
   ];
   const rows = (data ?? []).map((v) => {
-    const m = v.profiles as unknown as {
-      full_name: string | null;
-      email: string;
-    } | null;
+    const m = (managers ?? []).find((manager: { id: string }) => manager.id === v.tck_manager_id) as
+      | { full_name: string | null; email: string }
+      | undefined;
     return [
       v.visit_date,
+      v.visit_end_date,
       v.company_name,
       v.purpose,
       v.visitor_count,

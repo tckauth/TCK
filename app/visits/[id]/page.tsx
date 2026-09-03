@@ -36,7 +36,7 @@ export default async function VisitDetail({
             {visit.company_name}
           </h1>
           <p className="mt-2 text-muted-foreground">
-            {visit.visit_date} · TBM{' '}
+            {visit.visit_date} ~ {visit.visit_end_date} · TBM{' '}
             <Badge
               variant={
                 visit.tbm_yn === 'O'
@@ -64,6 +64,7 @@ export default async function VisitDetail({
               action={updateVisit.bind(null, id)}
               managers={managers ?? []}
               initial={visit}
+              canManageTbm={staff}
             />
           ) : (
             <dl className="grid gap-4 sm:grid-cols-2">
@@ -80,7 +81,7 @@ export default async function VisitDetail({
                 <dd>{visit.construction_location}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">공사유무</dt>
+                <dt className="text-xs text-muted-foreground">공사 여부</dt>
                 <dd>{visit.construction_yn ? 'O' : 'X'}</dd>
               </div>
             </dl>

@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { VisitForm } from '@/components/visits/visit-form';
 import { createVisit } from '../actions';
-import { requireUser } from '@/lib/auth/authorization';
+import { getRoles, requireUser } from '@/lib/auth/authorization';
 export default async function NewVisitPage() {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
+  const roles = await getRoles(user.id);
   const { data: managers } = await supabase.rpc('list_tck_managers');
   return (
     <div className="mx-auto max-w-3xl">
@@ -17,7 +18,11 @@ export default async function NewVisitPage() {
           <CardTitle>방문 정보</CardTitle>
         </CardHeader>
         <CardContent>
-          <VisitForm action={createVisit} managers={managers ?? []} />
+          <VisitForm
+            action={createVisit}
+            managers={managers ?? []}
+            canManageTbm={roles.some((role) => ['SUPER_ADMIN', 'TBM_ADMIN'].includes(role))}
+          />
         </CardContent>
       </Card>
     </div>

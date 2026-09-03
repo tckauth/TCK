@@ -1,5 +1,14 @@
 const SEOUL_TIME_ZONE = 'Asia/Seoul';
 
+export function getSeoulDate() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: SEOUL_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
 export function formatSeoulDateTime(value: string) {
   return new Intl.DateTimeFormat('ko-KR', {
     timeZone: SEOUL_TIME_ZONE,

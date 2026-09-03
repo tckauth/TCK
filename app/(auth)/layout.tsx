@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
-export default function AuthLayout({
+import { getPublicSiteTitle } from '@/lib/settings';
+export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const siteTitle = await getPublicSiteTitle();
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       <section className="flex items-center justify-center px-5 py-12">
@@ -16,7 +18,7 @@ export default function AuthLayout({
             <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground">
               <ShieldCheck className="size-5" />
             </span>
-            Aegis Console
+            {siteTitle}
           </Link>
           {children}
         </div>

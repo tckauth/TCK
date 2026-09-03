@@ -3,9 +3,11 @@ import { ArrowRight, CheckCircle2, ShieldCheck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/server';
+import { getPublicSiteTitle } from '@/lib/settings';
 
 export default async function Home() {
   const supabase = await createClient();
+  const siteTitle = await getPublicSiteTitle();
   const { data, error } = await supabase.rpc('public_home_stats');
   const current = (data ?? {}) as {
     active_users?: number;
@@ -25,7 +27,7 @@ export default async function Home() {
             <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
               <ShieldCheck className="size-5" />
             </span>
-            TCK Safety Hub
+            {siteTitle}
           </div>
           <Button nativeButton={false} render={<Link href="/login" />}>
             관리자 로그인 <ArrowRight />

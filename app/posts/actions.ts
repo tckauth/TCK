@@ -28,7 +28,10 @@ export async function createPost(
     title: formData.get('title'),
     content: formData.get('content'),
     postType: formData.get('postType'),
-    externalVideoUrl: formData.get('externalVideoUrl'),
+    externalVideoUrl:
+      typeof formData.get('externalVideoUrl') === 'string'
+        ? formData.get('externalVideoUrl')
+        : '',
   });
   if (!parsed.success)
     return { ok: false, message: '제목, 내용, 유형을 확인하세요.' };

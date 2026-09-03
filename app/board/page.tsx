@@ -3,21 +3,23 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { requireUser } from '@/lib/auth/authorization';
 import { RealtimeRefresh } from '@/components/visits/realtime-refresh';
+import { getSeoulDate } from '@/lib/date-time';
+type Manager = { id: string; full_name: string | null; email: string };
 export default async function BoardPage() {
   const { supabase } = await requireUser();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getSeoulDate();
   const { data, error } = await supabase
     .from('visits')
     .select(
-      'id,visit_date,company_name,visitor_count,construction_location,construction_yn,tbm_yn,tck_manager_id',
+      'id,visit_date,visit_end_date,company_name,visitor_count,construction_location,construction_yn,tbm_yn,tck_manager_id',
     )
-    .eq('visit_date', today)
+    .lte('visit_date', today)
+    .gte('visit_end_date', today)
     .is('deleted_at', null)
     .order('created_at');
   const managerIds = [...new Set((data ?? []).map((visit) => visit.tck_manager_id))];
-  const { data: managers } = managerIds.length
-    ? await supabase.from('profiles').select('id,full_name,email').in('id', managerIds)
-    : { data: [] };
+  const { data: allManagers } = await supabase.rpc('list_tck_managers');
+  const managers = ((allManagers ?? []) as Manager[]).filter((manager) => managerIds.includes(manager.id));
   const managerById = new Map((managers ?? []).map((manager) => [manager.id, manager]));
   const total = (data ?? []).reduce((sum, v) => sum + v.visitor_count, 0);
   return (
@@ -77,10 +79,10 @@ export default async function BoardPage() {
             <Card
               key={v.id}
               className={
-                v.tbm_yn === 'O'
-                  ? 'border-emerald-200 bg-emerald-50'
+                !v.construction_yn
+                  ? 'border-red-200 bg-red-50'
                   : v.tbm_yn === 'X'
-                    ? 'border-red-200 bg-red-50'
+                    ? 'border-red-500 bg-red-200'
                     : ''
               }
             >

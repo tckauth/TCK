@@ -17,6 +17,15 @@ export async function requireUser() {
     await supabase.auth.signOut();
     redirect('/login?error=approval-required');
   }
+  const [{ data: maintenanceSetting }, { data: roleRows }] = await Promise.all([
+    supabase.from('system_settings').select('value').eq('key', 'maintenance_mode').maybeSingle(),
+    supabase.from('user_roles').select('roles(name)').eq('user_id', user.id),
+  ]);
+  const isSuper = (roleRows ?? []).some((row) => {
+    const role = row.roles as unknown as { name?: string } | null;
+    return role?.name === 'SUPER_ADMIN';
+  });
+  if (maintenanceSetting?.value === true && !isSuper) redirect('/maintenance');
   return { supabase, user };
 }
 export async function getRoles(userId: string): Promise<AppRole[]> {

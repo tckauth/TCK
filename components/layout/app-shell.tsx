@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { logout } from '@/app/(auth)/actions';
 import type { AppRole } from '@/types/database';
+import { createClient } from '@/lib/supabase/server';
+import { IdleSession } from '@/components/auth/idle-session';
 
 const links: ReadonlyArray<
   readonly [string, string, typeof LayoutDashboard, AppRole[]]
@@ -33,7 +35,7 @@ const links: ReadonlyArray<
   ['/admin/logs', '시스템 로그', Activity, ['SUPER_ADMIN', 'AUDIT_ADMIN']],
   ['/settings', '내 설정', Settings, ['SUPER_ADMIN', 'AUDIT_ADMIN', 'APPR_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER']],
 ] as const;
-export function AppShell({
+export async function AppShell({
   children,
   email,
   roles,
@@ -42,9 +44,20 @@ export function AppShell({
   email: string;
   roles: AppRole[];
 }) {
+  const supabase = await createClient();
+  const { data: rows } = await supabase
+    .from('system_settings')
+    .select('key,value')
+    .in('key', ['site_title', 'session_timeout_minutes']);
+  const settings = Object.fromEntries((rows ?? []).map((row) => [row.key, row.value]));
+  const siteTitle = typeof settings.site_title === 'string' && settings.site_title.trim()
+    ? settings.site_title
+    : 'TCK Safety Hub';
+  const sessionTimeout = Number(settings.session_timeout_minutes) || 10;
   const initial = email.slice(0, 1).toUpperCase();
   return (
     <div className="min-h-screen bg-muted/25 md:grid md:grid-cols-[250px_1fr]">
+      <IdleSession minutes={sessionTimeout} />
       <aside className="hidden border-r bg-[oklch(0.19_0.045_256)] text-white md:flex md:flex-col">
         <Link
           href="/dashboard"
@@ -53,7 +66,7 @@ export function AppShell({
           <span className="grid size-9 place-items-center rounded-xl bg-white text-primary">
             <ShieldCheck className="size-5" />
           </span>
-          TCK Safety Hub
+          {siteTitle}
         </Link>
         <nav className="flex-1 space-y-1 p-3">
           {links

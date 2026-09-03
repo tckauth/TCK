@@ -15,26 +15,44 @@ export function VisitForm({
   action,
   managers,
   initial,
+  canManageTbm = false,
 }: {
   action: (s: VisitResult, d: FormData) => Promise<VisitResult>;
   managers: Manager[];
   initial?: Record<string, string | number | boolean | null>;
+  canManageTbm?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, {
     ok: false,
     message: '',
   });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
   return (
     <form action={formAction} className="grid gap-5 sm:grid-cols-2">
       <div className="space-y-2">
-        <Label htmlFor="visitDate">방문 날짜</Label>
+        <Label htmlFor="visitStartDate">방문 시작일</Label>
         <Input
-          id="visitDate"
-          name="visitDate"
+          id="visitStartDate"
+          name="visitStartDate"
           type="date"
           required
           defaultValue={String(initial?.visit_date ?? today)}
+          className="h-11"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="visitEndDate">방문 종료일</Label>
+        <Input
+          id="visitEndDate"
+          name="visitEndDate"
+          type="date"
+          required
+          defaultValue={String(initial?.visit_end_date ?? initial?.visit_date ?? today)}
           className="h-11"
         />
       </div>
@@ -105,7 +123,7 @@ export function VisitForm({
         </NativeSelect>
       </div>
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">공사유무</legend>
+        <legend className="text-sm font-medium">공사 여부</legend>
         <div className="grid grid-cols-2 gap-2">
           <label className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border has-[:checked]:border-primary has-[:checked]:bg-primary/10">
             <input
@@ -129,6 +147,21 @@ export function VisitForm({
           </label>
         </div>
       </fieldset>
+      {canManageTbm && (
+        <div className="space-y-2">
+          <Label htmlFor="tbmYn">TBM 여부</Label>
+          <NativeSelect
+            id="tbmYn"
+            name="tbmYn"
+            required
+            defaultValue={String(initial?.tbm_yn ?? 'X')}
+            className="w-full [&>select]:h-11"
+          >
+            <NativeSelectOption value="O">O</NativeSelectOption>
+            <NativeSelectOption value="X">X</NativeSelectOption>
+          </NativeSelect>
+        </div>
+      )}
       {state.message && (
         <output
           className={`sm:col-span-2 rounded-lg p-3 text-sm ${state.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}

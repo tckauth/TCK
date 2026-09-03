@@ -10,21 +10,22 @@ import { MetricCard } from '@/components/dashboard/metric-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { requireUser } from '@/lib/auth/authorization';
+import { getSeoulDate } from '@/lib/date-time';
 export default async function DashboardPage() {
   const { supabase } = await requireUser();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getSeoulDate();
   const { data } = await supabase
     .from('visits')
     .select(
       'id,company_name,visitor_count,construction_yn,tbm_yn,construction_location',
     )
-    .eq('visit_date', today)
+    .lte('visit_date', today)
+    .gte('visit_end_date', today)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
   const visits = data ?? [];
   const construction = visits.filter((v) => v.construction_yn);
   const complete = visits.filter((v) => v.tbm_yn === 'O');
-  const missing = visits.filter((v) => v.tbm_yn === null);
   const failed = visits.filter((v) => v.tbm_yn === 'X');
   return (
     <div className="mx-auto max-w-7xl">
@@ -62,13 +63,8 @@ export default async function DashboardPage() {
             icon={CheckCircle2}
           />
         </Link>
-        <Link href="/visits?tbm=NULL">
-          <MetricCard
-            label="TBM 미입력"
-            value={`${missing.length}건`}
-            detail="확인 필요"
-            icon={ClipboardList}
-          />
+        <Link href="/visits?construction=X">
+          <MetricCard label="비공사 방문" value={`${visits.length - construction.length}건`} detail="공사 여부 X" icon={ClipboardList} />
         </Link>
         <Link href="/visits?tbm=X">
           <MetricCard
