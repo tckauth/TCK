@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { requireUser, getRoles } from '@/lib/auth/authorization';
+import { requireUser } from '@/lib/auth/authorization';
 import { TbmControl } from '@/components/visits/tbm-control';
 import { getSeoulDate } from '@/lib/date-time';
 type Params = {
@@ -34,8 +34,7 @@ export default async function VisitsPage({
 }: {
   searchParams: Promise<Params>;
 }) {
-  const { supabase, user } = await requireUser();
-  const roles = await getRoles(user.id);
+  const { supabase, roles } = await requireUser();
   const staff = roles.some((r) =>
     ['SUPER_ADMIN', 'TBM_ADMIN'].includes(r),
   );

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { requireUser, getRoles } from '@/lib/auth/authorization';
+import { requireUser } from '@/lib/auth/authorization';
 import { DeletePostButton } from '@/components/posts/delete-post-button';
 import { submitSurvey } from '../actions';
 import { getRequestTimestamp } from '@/lib/request-time';
@@ -17,7 +17,7 @@ export default async function PostDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { supabase, user } = await requireUser();
+  const { supabase, user, roles } = await requireUser();
   const { data: post } = await supabase
     .from('posts')
     .select('*,profiles(full_name,email),post_attachments(*)')
@@ -29,7 +29,6 @@ export default async function PostDetail({
     .from('posts')
     .update({ view_count: post.view_count + 1 })
     .eq('id', id);
-  const roles = await getRoles(user.id);
   const canDelete =
     post.author_id === user.id ||
     roles.includes('SUPER_ADMIN');

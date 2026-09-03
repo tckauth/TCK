@@ -1,12 +1,11 @@
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
-import { getPublicSiteTitle } from '@/lib/settings';
-export default async function AuthLayout({
+import { PublicSiteTitle } from '@/components/public/site-title';
+export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const siteTitle = await getPublicSiteTitle();
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       <section className="flex items-center justify-center px-5 py-12">
@@ -18,7 +17,7 @@ export default async function AuthLayout({
             <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground">
               <ShieldCheck className="size-5" />
             </span>
-            {siteTitle}
+            <PublicSiteTitle />
           </Link>
           {children}
         </div>

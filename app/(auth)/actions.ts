@@ -17,28 +17,27 @@ export async function login(
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) return { error: '이메일 또는 비밀번호를 확인하세요.' };
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('status')
-    .eq('id', data.user.id)
-    .single();
-  if (profile?.status !== 'ACTIVE') {
+  const { data: rawContext } = await supabase.rpc('current_user_context');
+  const context = (rawContext ?? {}) as { status?: string };
+  if (context.status !== 'ACTIVE') {
     await supabase.auth.signOut();
     return {
       error:
-        profile?.status === 'PENDING'
+        context.status === 'PENDING'
           ? 'TBM 담당자의 가입 승인을 기다리고 있습니다.'
           : '비활성화된 계정입니다. 관리자에게 문의하세요.',
     };
   }
-  await supabase.from('profiles').update({ last_sign_in_at: new Date().toISOString() }).eq('id', data.user.id);
-  await supabase.from('audit_logs').insert({
-    user_id: data.user.id,
-    action: 'LOGIN',
-    target_type: 'AUTH',
-    target_id: data.user.id,
-    description: '로그인에 성공했습니다.',
-  });
+  await Promise.all([
+    supabase.from('profiles').update({ last_sign_in_at: new Date().toISOString() }).eq('id', data.user.id),
+    supabase.from('audit_logs').insert({
+      user_id: data.user.id,
+      action: 'LOGIN',
+      target_type: 'AUTH',
+      target_id: data.user.id,
+      description: '로그인에 성공했습니다.',
+    }),
+  ]);
   redirect('/dashboard');
 }
 export async function signup(

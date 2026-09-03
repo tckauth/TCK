@@ -5,13 +5,13 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, roles } = await requireRole([
+  const { user, roles, shellSettings } = await requireRole([
     'SUPER_ADMIN',
     'APPR_ADMIN',
     'AUDIT_ADMIN',
   ]);
   return (
-    <AppShell email={user.email ?? '관리자'} roles={roles}>
+    <AppShell email={user.email ?? '관리자'} roles={roles} {...shellSettings}>
       {children}
     </AppShell>
   );

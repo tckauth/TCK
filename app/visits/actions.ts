@@ -1,6 +1,6 @@
 'use server';
 import { revalidatePath } from 'next/cache';
-import { requireRole, getRoles } from '@/lib/auth/authorization';
+import { requireRole } from '@/lib/auth/authorization';
 import { visitSchema } from '@/lib/validation/visit';
 export type VisitResult = { ok: boolean; message: string };
 const formVisit = (formData: FormData) => ({
@@ -87,12 +87,11 @@ export async function updateVisit(
   _: VisitResult,
   formData: FormData,
 ): Promise<VisitResult> {
-  const { supabase, user } = await requireRole([
+  const { supabase, user, roles } = await requireRole([
     'SUPER_ADMIN',
     'TBM_ADMIN',
     'VISITER',
   ]);
-  const roles = await getRoles(user.id);
   const staff = roles.some((r) =>
     ['SUPER_ADMIN', 'TBM_ADMIN'].includes(r),
   );

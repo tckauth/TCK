@@ -1,26 +1,10 @@
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { createClient } from '@/lib/supabase/server';
-import { getPublicSiteTitle } from '@/lib/settings';
+import { PublicSiteTitle } from '@/components/public/site-title';
+import { PublicHomeStats } from '@/components/public/home-stats';
 
-export default async function Home() {
-  const supabase = await createClient();
-  const [{ data, error }, siteTitle] = await Promise.all([
-    supabase.rpc('public_home_stats'),
-    getPublicSiteTitle(),
-  ]);
-  const current = (data ?? {}) as {
-    active_users?: number;
-    admin_actions_today?: number;
-    service_status?: string;
-  };
-  const stats = [
-    { label: '활성 사용자', value: error ? '—' : String(current.active_users ?? 0), note: '현재', icon: Users },
-    { label: '관리 작업', value: error ? '—' : String(current.admin_actions_today ?? 0), note: '오늘', icon: ShieldCheck },
-    { label: '서비스 상태', value: error ? '점검 중' : (current.service_status ?? '정상'), note: '실시간', icon: CheckCircle2 },
-  ];
+export default function Home() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b bg-background/90 backdrop-blur">
@@ -29,7 +13,7 @@ export default async function Home() {
             <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
               <ShieldCheck className="size-5" />
             </span>
-            {siteTitle}
+            <PublicSiteTitle />
           </div>
           <Button nativeButton={false} render={<Link href="/login" />}>
             관리자 로그인 <ArrowRight />
@@ -78,20 +62,7 @@ export default async function Home() {
               실시간
             </span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {stats.map(({ label, value, note, icon: Icon }) => (
-              <Card key={label} className="shadow-none">
-                <CardContent className="p-4">
-                  <Icon className="mb-5 size-5 text-primary" />
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <div className="mt-1 flex items-end justify-between">
-                    <strong className="text-xl">{value}</strong>
-                    <span className="text-xs text-emerald-600">{note}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <PublicHomeStats />
         </div>
       </section>
     </main>

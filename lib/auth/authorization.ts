@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { AppRole } from '@/types/database';
 import { cache } from 'react';
-import { getRuntimeSettings } from '@/lib/settings';
 export const requireUser = cache(async () => {
   const supabase = await createClient();
   const {
@@ -10,37 +9,33 @@ export const requireUser = cache(async () => {
     error,
   } = await supabase.auth.getUser();
   if (error || !user) redirect('/login');
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('status')
-    .eq('id', user.id)
-    .single();
-  if (profile?.status !== 'ACTIVE') {
+  const { data: rawContext } = await supabase.rpc('current_user_context');
+  const appContext = (rawContext ?? {}) as {
+    status?: string;
+    roles?: AppRole[];
+    maintenance_mode?: boolean;
+    site_title?: string;
+    session_timeout_minutes?: number;
+  };
+  if (appContext.status !== 'ACTIVE') {
     await supabase.auth.signOut();
     redirect('/login?error=approval-required');
   }
-  const [settings, roles] = await Promise.all([
-    getRuntimeSettings(),
-    getRoles(user.id),
-  ]);
-  if (settings.maintenanceMode && !roles.includes('SUPER_ADMIN')) redirect('/maintenance');
-  return { supabase, user };
-});
-export const getRoles = cache(async (userId: string): Promise<AppRole[]> => {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('user_roles')
-    .select('roles(name)')
-    .eq('user_id', userId);
-  return (data ?? []).flatMap((item) => {
-    const role = item.roles as unknown as { name: AppRole } | null;
-    return role?.name ? [role.name] : [];
-  });
+  const roles = appContext.roles ?? [];
+  if (appContext.maintenance_mode && !roles.includes('SUPER_ADMIN')) redirect('/maintenance');
+  return {
+    supabase,
+    user,
+    roles,
+    shellSettings: {
+      siteTitle: appContext.site_title || 'TCK Safety Hub',
+      sessionTimeoutMinutes: appContext.session_timeout_minutes || 10,
+    },
+  };
 });
 export async function requireRole(allowed: AppRole[]) {
   const context = await requireUser();
-  const roles = await getRoles(context.user.id);
-  if (!roles.some((role) => allowed.includes(role)))
+  if (!context.roles.some((role) => allowed.includes(role)))
     redirect('/dashboard?error=forbidden');
-  return { ...context, roles };
+  return context;
 }

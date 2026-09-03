@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { VisitForm } from '@/components/visits/visit-form';
 import { DeleteVisitButton } from '@/components/visits/delete-visit-button';
-import { getRoles, requireUser } from '@/lib/auth/authorization';
+import { requireUser } from '@/lib/auth/authorization';
 import { updateVisit } from '../actions';
 export default async function VisitDetail({
   params,
@@ -11,8 +11,7 @@ export default async function VisitDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { supabase, user } = await requireUser();
-  const roles = await getRoles(user.id);
+  const { supabase, user, roles } = await requireUser();
   const staff = roles.some((r) =>
     ['SUPER_ADMIN', 'TBM_ADMIN'].includes(r),
   );
