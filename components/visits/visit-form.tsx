@@ -15,12 +15,10 @@ export function VisitForm({
   action,
   managers,
   initial,
-  canManageTbm = false,
 }: {
   action: (s: VisitResult, d: FormData) => Promise<VisitResult>;
   managers: Manager[];
   initial?: Record<string, string | number | boolean | null>;
-  canManageTbm?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, {
     ok: false,
@@ -147,21 +145,6 @@ export function VisitForm({
           </label>
         </div>
       </fieldset>
-      {canManageTbm && (
-        <div className="space-y-2">
-          <Label htmlFor="tbmYn">TBM 여부</Label>
-          <NativeSelect
-            id="tbmYn"
-            name="tbmYn"
-            required
-            defaultValue={String(initial?.tbm_yn ?? 'X')}
-            className="w-full [&>select]:h-11"
-          >
-            <NativeSelectOption value="O">O</NativeSelectOption>
-            <NativeSelectOption value="X">X</NativeSelectOption>
-          </NativeSelect>
-        </div>
-      )}
       {state.message && (
         <output
           className={`sm:col-span-2 rounded-lg p-3 text-sm ${state.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}

@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { AppRole } from '@/types/database';
 import { cache } from 'react';
 import { getRuntimeSettings } from '@/lib/settings';
-export async function requireUser() {
+export const requireUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -25,7 +25,7 @@ export async function requireUser() {
   ]);
   if (settings.maintenanceMode && !roles.includes('SUPER_ADMIN')) redirect('/maintenance');
   return { supabase, user };
-}
+});
 export const getRoles = cache(async (userId: string): Promise<AppRole[]> => {
   const supabase = await createClient();
   const { data } = await supabase

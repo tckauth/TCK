@@ -8,7 +8,6 @@ export const visitSchema = z.object({
   constructionLocation: z.string().trim().min(1).max(200),
   tckManagerId: z.uuid(),
   constructionYn: z.enum(['true', 'false']).transform((v) => v === 'true'),
-  tbmYn: z.enum(['O', 'X']).optional(),
 }).refine((value) => value.visitStartDate <= value.visitEndDate, {
   message: '종료일은 시작일보다 빠를 수 없습니다.',
   path: ['visitEndDate'],

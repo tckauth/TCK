@@ -64,7 +64,6 @@ export default async function VisitDetail({
               action={updateVisit.bind(null, id)}
               managers={managers ?? []}
               initial={visit}
-              canManageTbm={staff}
             />
           ) : (
             <dl className="grid gap-4 sm:grid-cols-2">

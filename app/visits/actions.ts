@@ -12,7 +12,6 @@ const formVisit = (formData: FormData) => ({
   constructionLocation: formData.get('constructionLocation'),
   tckManagerId: formData.get('tckManagerId'),
   constructionYn: formData.get('constructionYn'),
-  tbmYn: formData.get('tbmYn') || undefined,
 });
 export async function createVisit(
   _: VisitResult,
@@ -29,8 +28,6 @@ export async function createVisit(
       ok: false,
       message: parsed.error.issues[0]?.message ?? '입력값을 확인하세요.',
     };
-  const roles = await getRoles(user.id);
-  const staff = roles.some((role) => ['SUPER_ADMIN', 'TBM_ADMIN'].includes(role));
   const { error } = await supabase.from('visits').insert({
     visit_date: parsed.data.visitStartDate,
     visit_end_date: parsed.data.visitEndDate,
@@ -40,7 +37,7 @@ export async function createVisit(
     construction_location: parsed.data.constructionLocation,
     tck_manager_id: parsed.data.tckManagerId,
     construction_yn: parsed.data.constructionYn,
-    tbm_yn: staff ? (parsed.data.tbmYn ?? 'X') : 'X',
+    tbm_yn: 'X',
     created_by: user.id,
     updated_by: user.id,
   });
@@ -112,7 +109,6 @@ export async function updateVisit(
       construction_location: parsed.data.constructionLocation,
       tck_manager_id: parsed.data.tckManagerId,
       construction_yn: parsed.data.constructionYn,
-      ...(staff ? { tbm_yn: parsed.data.tbmYn ?? 'X' } : {}),
       updated_by: user.id,
     })
     .eq('id', visitId)

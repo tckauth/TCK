@@ -7,8 +7,10 @@ import { getPublicSiteTitle } from '@/lib/settings';
 
 export default async function Home() {
   const supabase = await createClient();
-  const siteTitle = await getPublicSiteTitle();
-  const { data, error } = await supabase.rpc('public_home_stats');
+  const [{ data, error }, siteTitle] = await Promise.all([
+    supabase.rpc('public_home_stats'),
+    getPublicSiteTitle(),
+  ]);
   const current = (data ?? {}) as {
     active_users?: number;
     admin_actions_today?: number;

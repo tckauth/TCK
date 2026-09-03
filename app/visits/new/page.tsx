@@ -1,10 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { VisitForm } from '@/components/visits/visit-form';
 import { createVisit } from '../actions';
-import { getRoles, requireUser } from '@/lib/auth/authorization';
+import { requireUser } from '@/lib/auth/authorization';
 export default async function NewVisitPage() {
-  const { supabase, user } = await requireUser();
-  const roles = await getRoles(user.id);
+  const { supabase } = await requireUser();
   const { data: managers } = await supabase.rpc('list_tck_managers');
   return (
     <div className="mx-auto max-w-3xl">
@@ -21,7 +20,6 @@ export default async function NewVisitPage() {
           <VisitForm
             action={createVisit}
             managers={managers ?? []}
-            canManageTbm={roles.some((role) => ['SUPER_ADMIN', 'TBM_ADMIN'].includes(role))}
           />
         </CardContent>
       </Card>

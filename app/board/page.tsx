@@ -8,17 +8,17 @@ type Manager = { id: string; full_name: string | null; email: string };
 export default async function BoardPage() {
   const { supabase } = await requireUser();
   const today = getSeoulDate();
-  const { data, error } = await supabase
-    .from('visits')
-    .select(
-      'id,visit_date,visit_end_date,company_name,visitor_count,construction_location,construction_yn,tbm_yn,tck_manager_id',
-    )
-    .lte('visit_date', today)
-    .gte('visit_end_date', today)
-    .is('deleted_at', null)
-    .order('created_at');
+  const [{ data, error }, { data: allManagers }] = await Promise.all([
+    supabase
+      .from('visits')
+      .select('id,visit_date,visit_end_date,company_name,visitor_count,construction_location,construction_yn,tbm_yn,tck_manager_id')
+      .lte('visit_date', today)
+      .gte('visit_end_date', today)
+      .is('deleted_at', null)
+      .order('created_at'),
+    supabase.rpc('list_tck_managers'),
+  ]);
   const managerIds = [...new Set((data ?? []).map((visit) => visit.tck_manager_id))];
-  const { data: allManagers } = await supabase.rpc('list_tck_managers');
   const managers = ((allManagers ?? []) as Manager[]).filter((manager) => managerIds.includes(manager.id));
   const managerById = new Map((managers ?? []).map((manager) => [manager.id, manager]));
   const total = (data ?? []).reduce((sum, v) => sum + v.visitor_count, 0);
