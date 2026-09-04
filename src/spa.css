@@ -6,7 +6,7 @@ body {
   margin: 0;
   background: #f5f7fa;
   color: #172033;
-  font-family: Arial, 'Noto Sans KR', sans-serif;
+  font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
 }
 a {
   color: inherit;
@@ -234,6 +234,19 @@ textarea {
   display: block;
   color: #64748b;
 }
+.account-summary > span {
+  display: block;
+  min-width: 0;
+  text-align: right;
+}
+.account-summary b,
+.account-summary small {
+  display: block;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .workspace > main {
   padding: 2rem;
   max-width: 1450px;
@@ -293,18 +306,65 @@ th {
 .deep-red {
   background: #fecaca;
 }
-.board,
 .list {
   display: grid;
   gap: 1rem;
   margin-top: 1rem;
 }
-.board {
-  grid-template-columns: repeat(2, 1fr);
-}
-.board h3,
 .list h3 {
   margin: 0.3rem 0;
+}
+.board-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.5rem;
+  margin-bottom: 0.85rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+.board-summary b {
+  color: #0f172a;
+}
+.board-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+.board-table-wrap {
+  margin: 0;
+}
+.board-table {
+  min-width: 1000px;
+}
+.board-table th,
+.board-table td {
+  padding: 0.75rem 0.85rem;
+  vertical-align: middle;
+}
+.board-table td:nth-child(3) {
+  max-width: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tbm-status {
+  display: inline-grid;
+  min-width: 2.1rem;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  color: white;
+  font-weight: 700;
+}
+.tbm-status.complete {
+  background: #047857;
+}
+.tbm-status.pending {
+  background: #b91c1c;
+}
+.board-empty {
+  height: 9rem;
+  text-align: center;
+  color: #64748b;
 }
 .badge {
   display: inline-block;
@@ -372,7 +432,6 @@ legend {
 @media (max-width: 800px) {
   .stats,
   .metrics,
-  .board,
   .formgrid {
     grid-template-columns: 1fr;
   }

@@ -368,9 +368,11 @@ function Shell({ ctx, children }: { ctx: Context; children: React.ReactNode }) {
             <Menu />
           </Btn>
           <span>운영 워크스페이스</span>
-          <div>
-            <b>{ctx.profile?.full_name || ctx.user.email}</b>
-            <small>{ctx.roles[0]}</small>
+          <div className="account-summary">
+            <span>
+              <b>{ctx.user.email}</b>
+              <small>({ctx.profile?.full_name || '사용자명 없음'})</small>
+            </span>
             <Btn
               aria-label="로그아웃"
               onClick={async () => {
@@ -751,47 +753,53 @@ function Board() {
         title="오늘 방문 예정"
         desc={`${seoulDate()} 사업장 방문 및 TBM 현황`}
       />
-      <div className="metrics">
-        <Card>
-          <b>{rows.length}</b>
-          <span>방문 업체</span>
-        </Card>
-        <Card>
-          <b>{rows.filter((v) => v.construction_yn).length}</b>
-          <span>공사 건</span>
-        </Card>
-        <Card>
-          <b>{rows.reduce((s, v) => s + v.visitor_count, 0)}</b>
-          <span>총 방문인원</span>
-        </Card>
+      <div className="board-summary" aria-label="금일 방문 요약">
+        <span>업체 <b>{rows.length}</b>곳</span>
+        <span>공사 <b>{rows.filter((v) => v.construction_yn).length}</b>건</span>
+        <span>방문인원 <b>{rows.reduce((s, v) => s + v.visitor_count, 0)}</b>명</span>
       </div>
-      <div className="board">
-        {rows.map((v) => (
-          <Card
-            key={v.id}
-            className={
-              !v.construction_yn
-                ? 'soft-red'
-                : v.tbm_yn === 'X'
-                  ? 'deep-red'
-                  : ''
-            }
-          >
-            <h3>{v.company_name}</h3>
-            <p>
-              {v.construction_location} · {v.visitor_count}명 · 공사{' '}
-              {v.construction_yn ? 'O' : 'X'}
-            </p>
-            <p>
-              담당자{' '}
-              {map.get(v.tck_manager_id)?.full_name ||
-                map.get(v.tck_manager_id)?.email ||
-                '—'}
-            </p>
-            <b>TBM {v.tbm_yn}</b>
-          </Card>
-        ))}
-      </div>
+      <Card className="board-table-card">
+        <div className="tablewrap board-table-wrap">
+          <table className="board-table">
+            <thead>
+              <tr>
+                <th>업체명</th>
+                <th>방문/공사 장소</th>
+                <th>목적</th>
+                <th>TCK 담당자</th>
+                <th>방문인원</th>
+                <th>공사 여부</th>
+                <th>TBM 여부</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((v) => (
+                <tr
+                  key={v.id}
+                  className={
+                    !v.construction_yn
+                      ? 'soft-red'
+                      : v.tbm_yn === 'X'
+                        ? 'deep-red'
+                        : ''
+                  }
+                >
+                  <td><b>{v.company_name}</b></td>
+                  <td>{v.construction_location}</td>
+                  <td>{v.purpose}</td>
+                  <td>{map.get(v.tck_manager_id)?.full_name || map.get(v.tck_manager_id)?.email || '—'}</td>
+                  <td>{v.visitor_count}명</td>
+                  <td>{v.construction_yn ? 'O' : 'X'}</td>
+                  <td><span className={`tbm-status ${v.tbm_yn === 'O' ? 'complete' : 'pending'}`}>{v.tbm_yn}</span></td>
+                </tr>
+              ))}
+              {!rows.length && (
+                <tr><td className="board-empty" colSpan={7}>금일 방문/공사자 없음</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </>
   );
 }
