@@ -835,9 +835,10 @@ function Board() {
   );
 }
 
-function Posts({ ctx }: { ctx: Context }) {
+function Posts() {
   const [rows, setRows] = useState<any[]>([]),
-    [q, setQ] = useState('');
+    [q, setQ] = useState(''),
+    [type, setType] = useState('ALL');
   const load = useCallback(async () => {
     let x = supabase
       .from('posts')
@@ -849,9 +850,10 @@ function Posts({ ctx }: { ctx: Context }) {
       x = x.or(
         `title.ilike.%${q.replace(/[%,()]/g, '')}%,content.ilike.%${q.replace(/[%,()]/g, '')}%`,
       );
+    if (type !== 'ALL') x = x.eq('post_type', type);
     const { data } = await x;
     setRows(data ?? []);
-  }, [q]);
+  }, [q, type]);
   useEffect(() => {
     load();
   }, [load]);
@@ -862,20 +864,43 @@ function Posts({ ctx }: { ctx: Context }) {
         title="게시판"
         desc="공지, 자료, 영상과 설문을 확인하세요."
         action={
-          ctx.roles.includes('SUPER_ADMIN') && (
-            <A href="/posts/new" className="btn primary">
-              글쓰기
-            </A>
-          )
+          <A href="/posts/new" className="btn primary">
+            글쓰기
+          </A>
         }
       />
       <Card>
+        <div className="post-type-legend" aria-label="게시물 유형 안내">
+          {[
+            ['GENERAL', '일반'],
+            ['NOTICE', '공지'],
+            ['SURVEY', '설문'],
+            ['IMAGE', '이미지'],
+            ['VIDEO', '영상'],
+          ].map(([value, label]) => (
+            <span key={value}>
+              <PostTypeIcon type={value} /> {label}
+            </span>
+          ))}
+        </div>
         <div className="filters">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="제목 또는 내용 검색"
           />
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            aria-label="게시물 유형"
+          >
+            <option value="ALL">전체 유형</option>
+            <option value="GENERAL">일반</option>
+            <option value="NOTICE">공지</option>
+            <option value="SURVEY">설문</option>
+            <option value="IMAGE">이미지</option>
+            <option value="VIDEO">영상</option>
+          </select>
           <Btn onClick={load}>검색</Btn>
         </div>
       </Card>
@@ -972,6 +997,8 @@ function NewPost() {
         author_id: user.id,
         is_pinned: f.get('pinned') === 'on',
         external_video_url: f.get('video') || null,
+        download_allowed:
+          type !== 'VIDEO' || f.get('download_allowed') === 'on',
       })
       .select('id')
       .single();
@@ -1076,9 +1103,15 @@ function NewPost() {
             <textarea name="content" rows={9} required />
           </Field>
           {type === 'VIDEO' && (
-            <Field label="외부 영상 URL">
-              <input name="video" type="url" />
-            </Field>
+            <>
+              <Field label="외부 영상 URL">
+                <input name="video" type="url" />
+              </Field>
+              <label className="check">
+                <input name="download_allowed" type="checkbox" /> 영상 다운로드
+                허용
+              </label>
+            </>
           )}
           {['IMAGE', 'VIDEO'].includes(type) && (
             <Field label="첨부파일 (최대 100MB)">
@@ -1148,6 +1181,9 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
     load();
   }, [load]);
   if (!post) return <p>불러오는 중...</p>;
+  const canEdit =
+    post.post_type !== 'SURVEY' &&
+    (ctx.roles.includes('SUPER_ADMIN') || post.author_id === ctx.user.id);
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const opts = new FormData(e.currentTarget).getAll('option'),
@@ -1176,6 +1212,13 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
         over={post.post_type}
         title={post.title}
         desc={`${post.profiles?.full_name || post.profiles?.email} · ${fmt(post.created_at)}`}
+        action={
+          canEdit && (
+            <A href={`/posts/${id}/edit`} className="btn primary">
+              수정
+            </A>
+          )
+        }
       />
       <Card>
         <p className="content">{post.content}</p>
@@ -1184,7 +1227,10 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
             외부 영상 보기
           </a>
         )}
-        <Attachments rows={post.post_attachments} />
+        <Attachments
+          rows={post.post_attachments}
+          downloadAllowed={post.download_allowed !== false}
+        />
       </Card>
       {survey && (
         <Card>
@@ -1215,7 +1261,7 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
           </form>
         </Card>
       )}
-      {ctx.roles.includes('SUPER_ADMIN') && (
+      {ctx.roles.includes('SUPER_ADMIN') && post.post_type !== 'SURVEY' && (
         <Btn
           onClick={async () => {
             if (confirm('삭제하시겠습니까?')) {
@@ -1233,7 +1279,107 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
     </>
   );
 }
-function Attachments({ rows = [] }: { rows: any[] }) {
+function EditPost({ ctx, id }: { ctx: Context; id: string }) {
+  const [post, setPost] = useState<any>(),
+    [msg, setMsg] = useState('');
+  useEffect(() => {
+    supabase
+      .from('posts')
+      .select('*')
+      .eq('id', id)
+      .single()
+      .then(({ data }) => setPost(data));
+  }, [id]);
+  if (!post) return <p>불러오는 중...</p>;
+  const canEdit =
+    post.post_type !== 'SURVEY' &&
+    (ctx.roles.includes('SUPER_ADMIN') || post.author_id === ctx.user.id);
+  if (!canEdit)
+    return <Card>설문 또는 수정 권한이 없는 게시물은 수정할 수 없습니다.</Card>;
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const title = String(f.get('title')).trim();
+    const content = String(f.get('content')).trim();
+    if (!title || !content) return setMsg('제목과 내용을 입력하세요.');
+    const { error } = await supabase
+      .from('posts')
+      .update({
+        title,
+        content,
+        is_pinned: f.get('pinned') === 'on',
+        external_video_url:
+          post.post_type === 'VIDEO' ? f.get('video') || null : null,
+        download_allowed:
+          post.post_type !== 'VIDEO' || f.get('download_allowed') === 'on',
+      })
+      .eq('id', id);
+    if (error) return setMsg(error.message);
+    window.alert('수정되었습니다.');
+    go(`/posts/${id}`);
+  };
+  return (
+    <>
+      <Title over="EDIT POST" title="게시글 수정" />
+      <Card>
+        <form onSubmit={submit}>
+          <Field label="유형">
+            <input value={post.post_type} disabled />
+          </Field>
+          <label className="check">
+            <input
+              name="pinned"
+              type="checkbox"
+              defaultChecked={post.is_pinned}
+            />
+            게시판 최상단에 고정
+          </label>
+          <Field label="제목">
+            <input name="title" defaultValue={post.title} required />
+          </Field>
+          <Field label="내용">
+            <textarea
+              name="content"
+              rows={9}
+              defaultValue={post.content}
+              required
+            />
+          </Field>
+          {post.post_type === 'VIDEO' && (
+            <>
+              <Field label="외부 영상 URL">
+                <input
+                  name="video"
+                  type="url"
+                  defaultValue={post.external_video_url || ''}
+                />
+              </Field>
+              <label className="check">
+                <input
+                  name="download_allowed"
+                  type="checkbox"
+                  defaultChecked={post.download_allowed !== false}
+                />
+                영상 다운로드 허용
+              </label>
+            </>
+          )}
+          <Notice>{msg}</Notice>
+          <Btn type="submit" className="primary">
+            수정 완료
+          </Btn>
+        </form>
+      </Card>
+    </>
+  );
+}
+function Attachments({
+  rows = [],
+  downloadAllowed = true,
+}: {
+  rows: any[];
+  downloadAllowed?: boolean;
+}) {
   const [urls, setUrls] = useState<any[]>([]);
   useEffect(() => {
     Promise.all(
@@ -1254,11 +1400,20 @@ function Attachments({ rows = [] }: { rows: any[] }) {
           {a.file_type === 'IMAGE' ? (
             <img src={a.url} alt={a.file_name} />
           ) : (
-            <video src={a.url} controls />
+            <video
+              src={a.url}
+              controls
+              controlsList={downloadAllowed ? undefined : 'nodownload'}
+              onContextMenu={
+                downloadAllowed ? undefined : (e) => e.preventDefault()
+              }
+            />
           )}
-          <a href={a.url} download>
-            {a.file_name} 다운로드
-          </a>
+          {(a.file_type === 'IMAGE' || downloadAllowed) && (
+            <a href={a.url} download>
+              {a.file_name} 다운로드
+            </a>
+          )}
         </figure>
       ))}
     </>
@@ -1614,15 +1769,12 @@ function Protected({ path }: { path: string }) {
   else if (path === '/visits/new') page = <Visits ctx={ctx} newMode />;
   else if (path === '/visits') page = <Visits ctx={ctx} />;
   else if (path === '/board') page = <Board />;
-  else if (path === '/posts/new')
-    page = ctx.roles.includes('SUPER_ADMIN') ? (
-      <NewPost />
-    ) : (
-      <Card>권한이 없습니다.</Card>
-    );
+  else if (path === '/posts/new') page = <NewPost />;
+  else if (/^\/posts\/[^/]+\/edit$/.test(path))
+    page = <EditPost ctx={ctx} id={path.split('/')[2]} />;
   else if (path.startsWith('/posts/'))
     page = <PostDetail ctx={ctx} id={path.split('/')[2]} />;
-  else if (path === '/posts') page = <Posts ctx={ctx} />;
+  else if (path === '/posts') page = <Posts />;
   else if (path === '/admin/users') page = <UsersAdmin ctx={ctx} />;
   else if (path === '/admin/logs') page = <Logs />;
   else if (path === '/admin/settings') page = <ServiceSettings ctx={ctx} />;
