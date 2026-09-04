@@ -93,16 +93,19 @@ const A = ({
   href,
   children,
   className = '',
+  onNavigate,
 }: {
   href: string;
   children: React.ReactNode;
   className?: string;
+  onNavigate?: () => void;
 }) => (
   <a
     href={href}
     className={className}
     onClick={(e) => {
       e.preventDefault();
+      onNavigate?.();
       go(href);
     }}
   >
@@ -289,6 +292,7 @@ function AuthPage({ signup = false }: { signup?: boolean }) {
 
 function Shell({ ctx, children }: { ctx: Context; children: React.ReactNode }) {
   const [mobile, setMobile] = useState(false);
+  const closeMobileMenu = useCallback(() => setMobile(false), []);
   const visible = nav.filter(([p]) =>
     (allowed[p] ?? []).some((r) => ctx.roles.includes(r)),
   );
@@ -310,16 +314,35 @@ function Shell({ ctx, children }: { ctx: Context; children: React.ReactNode }) {
         removeEventListener(x, reset),
       );
   }, [ctx.timeout]);
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMobileMenu();
+    };
+    addEventListener('popstate', closeMobileMenu);
+    addEventListener('keydown', closeOnEscape);
+    return () => {
+      removeEventListener('popstate', closeMobileMenu);
+      removeEventListener('keydown', closeOnEscape);
+    };
+  }, [closeMobileMenu]);
   return (
     <div className="shell">
-      <aside className={mobile ? 'open' : ''}>
-        <A href="/dashboard" className="logo">
+      {mobile && (
+        <button
+          type="button"
+          className="menu-backdrop"
+          aria-label="메뉴 닫기"
+          onClick={closeMobileMenu}
+        />
+      )}
+      <aside id="mobile-navigation" className={mobile ? 'open' : ''}>
+        <A href="/dashboard" className="logo" onNavigate={closeMobileMenu}>
           <ShieldCheck />
           {ctx.siteTitle}
         </A>
         <nav>
           {visible.map(([p, l, I]) => (
-            <A key={p} href={p}>
+            <A key={p} href={p} onNavigate={closeMobileMenu}>
               <I />
               {l}
             </A>
@@ -333,7 +356,13 @@ function Shell({ ctx, children }: { ctx: Context; children: React.ReactNode }) {
       </aside>
       <div className="workspace">
         <header>
-          <Btn className="menu" onClick={() => setMobile(!mobile)}>
+          <Btn
+            className="menu"
+            aria-label={mobile ? '메뉴 닫기' : '메뉴 열기'}
+            aria-expanded={mobile}
+            aria-controls="mobile-navigation"
+            onClick={() => setMobile((open) => !open)}
+          >
             <Menu />
           </Btn>
           <span>운영 워크스페이스</span>
