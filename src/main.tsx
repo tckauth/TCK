@@ -983,7 +983,8 @@ function PostTypeIcon({ type }: { type: string }) {
 }
 function NewPost({ surveyMode = false }: { surveyMode?: boolean }) {
   const [type, setType] = useState(surveyMode ? 'SURVEY' : 'GENERAL'),
-    [msg, setMsg] = useState('');
+    [msg, setMsg] = useState(''),
+    [permanent, setPermanent] = useState(false);
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget),
@@ -1041,12 +1042,13 @@ function NewPost({ surveyMode = false }: { surveyMode?: boolean }) {
     }
     if (type === 'SURVEY') {
       const starts = new Date(String(f.get('starts'))),
-        ends = new Date(String(f.get('ends'))),
+        permanentSurvey = f.get('permanent') === 'on',
+        ends = permanentSurvey ? null : new Date(String(f.get('ends'))),
         options = String(f.get('options'))
           .split('\n')
           .map((x) => x.trim())
           .filter(Boolean);
-      if (starts >= ends || options.length < 2) {
+      if ((!ends ? false : starts >= ends) || options.length < 2) {
         setMsg('설문 기간과 선택지 두 개 이상을 확인하세요.');
         return;
       }
@@ -1055,7 +1057,7 @@ function NewPost({ surveyMode = false }: { surveyMode?: boolean }) {
         .insert({
           post_id: post.id,
           starts_at: starts.toISOString(),
-          ends_at: ends.toISOString(),
+          ends_at: ends?.toISOString() ?? null,
           is_results_public: false,
         })
         .select('id')
@@ -1111,6 +1113,11 @@ function NewPost({ surveyMode = false }: { surveyMode?: boolean }) {
               </label>
             </>
           )}
+          {surveyMode && (
+            <label className="check">
+              <input name="pinned" type="checkbox" /> 설문 최상단에 고정
+            </label>
+          )}
           <Field label="제목">
             <input name="title" required />
           </Field>
@@ -1148,9 +1155,23 @@ function NewPost({ surveyMode = false }: { surveyMode?: boolean }) {
                   <input name="starts" type="datetime-local" required />
                 </Field>
                 <Field label="종료">
-                  <input name="ends" type="datetime-local" required />
+                  <input
+                    name="ends"
+                    type="datetime-local"
+                    required={!permanent}
+                    disabled={permanent}
+                  />
                 </Field>
               </div>
+              <label className="check">
+                <input
+                  name="permanent"
+                  type="checkbox"
+                  checked={permanent}
+                  onChange={(e) => setPermanent(e.target.checked)}
+                />
+                종료일 없이 영구 설문으로 운영
+              </label>
               <Field label="선택지 (한 줄에 하나)">
                 <textarea name="options" rows={5} required />
               </Field>
@@ -1177,10 +1198,11 @@ function Surveys({ ctx }: { ctx: Context }) {
     const { data } = await supabase
       .from('posts')
       .select(
-        'id,title,content,author_id,created_at,profiles(full_name,email),surveys(id,starts_at,ends_at,survey_questions(id,question_text,allow_multiple,survey_options(id,option_text,sort_order)))',
+        'id,title,content,author_id,created_at,is_pinned,profiles(full_name,email),surveys(id,starts_at,ends_at,survey_questions(id,question_text,allow_multiple,survey_options(id,option_text,sort_order)))',
       )
       .eq('post_type', 'SURVEY')
       .is('deleted_at', null)
+      .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false });
     setRows(data ?? []);
   }, []);
@@ -1276,6 +1298,11 @@ function SurveyItem({ ctx, post }: { ctx: Context; post: any }) {
           >
             {ended ? '종료' : started ? '진행 중' : '예정'}
           </span>
+          {post.is_pinned && (
+            <span className="survey-pinned">
+              <Pin aria-hidden="true" /> 상단 고정
+            </span>
+          )}
           <h2>{post.title}</h2>
           <small>
             {post.profiles?.full_name || post.profiles?.email} ·{' '}
@@ -1315,8 +1342,13 @@ function SurveyItem({ ctx, post }: { ctx: Context; post: any }) {
         <p className="muted">현재 응답할 수 없는 설문입니다.</p>
       )}
       {privileged && (
-        <div className="survey-results">
-          <h3>전체 참여자 답변 ({responses.length}명)</h3>
+        <details className="survey-results">
+          <summary>
+            <span className="collapsed-label">
+              참여자 답변 늘리기 ({responses.length}명)
+            </span>
+            <span className="expanded-label">참여자 답변 줄이기</span>
+          </summary>
           <div className="tablewrap survey-result-table">
             <table>
               <thead>
@@ -1346,7 +1378,7 @@ function SurveyItem({ ctx, post }: { ctx: Context; post: any }) {
               </tbody>
             </table>
           </div>
-        </div>
+        </details>
       )}
     </Card>
   );

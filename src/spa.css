@@ -559,6 +559,19 @@ legend {
   font-size: 0.8rem;
   font-weight: 700;
 }
+.survey-pinned {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  margin-left: 0.5rem;
+  color: #7c3aed;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.survey-pinned svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
 .survey-state.active {
   color: #047857;
   background: #d1fae5;
@@ -590,8 +603,23 @@ legend {
   padding-top: 1rem;
   border-top: 1px solid #dce2ea;
 }
+.survey-results summary {
+  width: fit-content;
+  cursor: pointer;
+  color: #5b21b6;
+  font-weight: 700;
+}
+.survey-results .expanded-label {
+  display: none;
+}
+.survey-results[open] .collapsed-label {
+  display: none;
+}
+.survey-results[open] .expanded-label {
+  display: inline;
+}
 .survey-result-table {
-  margin: 0;
+  margin: 1rem 0 0;
 }
 .muted {
   color: #64748b;
