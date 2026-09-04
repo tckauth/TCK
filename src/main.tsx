@@ -1213,11 +1213,16 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
         title={post.title}
         desc={`${post.profiles?.full_name || post.profiles?.email} · ${fmt(post.created_at)}`}
         action={
-          canEdit && (
-            <A href={`/posts/${id}/edit`} className="btn primary">
-              수정
+          <div className="title-actions">
+            <A href="/posts" className="btn">
+              목록
             </A>
-          )
+            {canEdit && (
+              <A href={`/posts/${id}/edit`} className="btn primary">
+                수정
+              </A>
+            )}
+          </div>
         }
       />
       <Card>

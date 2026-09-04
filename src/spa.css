@@ -277,6 +277,11 @@ textarea {
   color: #64748b;
   margin: 0.3rem 0;
 }
+.title-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
 .filters {
   display: flex;
   gap: 0.7rem;
