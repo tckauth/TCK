@@ -536,6 +536,66 @@ legend {
 .choice {
   margin: 0.6rem 0;
 }
+.survey-list {
+  display: grid;
+  gap: 1rem;
+}
+.survey-card {
+  border-top: 4px solid #7c3aed;
+}
+.survey-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.survey-head h2 {
+  margin: 0.55rem 0 0.3rem;
+}
+.survey-state {
+  display: inline-flex;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.survey-state.active {
+  color: #047857;
+  background: #d1fae5;
+}
+.survey-state.waiting {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+.survey-state.ended {
+  color: #64748b;
+  background: #e2e8f0;
+}
+.survey-content {
+  padding: 1rem;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.own-answer {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  background: #ecfdf5;
+}
+.survey-results {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dce2ea;
+}
+.survey-result-table {
+  margin: 0;
+}
+.muted {
+  color: #64748b;
+}
 @media (max-width: 800px) {
   .stats,
   .metrics,

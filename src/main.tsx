@@ -51,6 +51,15 @@ const allowed: Record<string, Role[]> = {
   '/visits/new': ['SUPER_ADMIN', 'TBM_ADMIN', 'VISITER'],
   '/board': ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER'],
   '/posts': ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER'],
+  '/surveys': [
+    'SUPER_ADMIN',
+    'AUDIT_ADMIN',
+    'APPR_ADMIN',
+    'TBM_ADMIN',
+    'VIEWER',
+    'VISITER',
+  ],
+  '/surveys/new': ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER'],
   '/admin/users': ['SUPER_ADMIN', 'APPR_ADMIN'],
   '/admin/roles': ['SUPER_ADMIN'],
   '/admin/settings': ['SUPER_ADMIN'],
@@ -70,6 +79,7 @@ const nav = [
   ['/visits/new', '방문/공사 등록', CalendarPlus],
   ['/board', '현황판', Monitor],
   ['/posts', '게시판', BookOpen],
+  ['/surveys', '설문', BarChart3],
   ['/admin/users', '사용자 관리', Users],
   ['/admin/roles', '권한 관리', ShieldCheck],
   ['/admin/settings', '서비스 설정', SlidersHorizontal],
@@ -844,6 +854,7 @@ function Posts() {
       .from('posts')
       .select('*,profiles(full_name,email),post_attachments(id)')
       .is('deleted_at', null)
+      .neq('post_type', 'SURVEY')
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false });
     if (q)
@@ -874,7 +885,6 @@ function Posts() {
           {[
             ['GENERAL', '일반'],
             ['NOTICE', '공지'],
-            ['SURVEY', '설문'],
             ['IMAGE', '이미지'],
             ['VIDEO', '영상'],
           ].map(([value, label]) => (
@@ -897,7 +907,6 @@ function Posts() {
             <option value="ALL">전체 유형</option>
             <option value="GENERAL">일반</option>
             <option value="NOTICE">공지</option>
-            <option value="SURVEY">설문</option>
             <option value="IMAGE">이미지</option>
             <option value="VIDEO">영상</option>
           </select>
@@ -972,8 +981,8 @@ function PostTypeIcon({ type }: { type: string }) {
     return <PlaySquare className={className} aria-label="영상" />;
   return <BookOpen className={className} aria-label="일반" />;
 }
-function NewPost() {
-  const [type, setType] = useState('GENERAL'),
+function NewPost({ surveyMode = false }: { surveyMode?: boolean }) {
+  const [type, setType] = useState(surveyMode ? 'SURVEY' : 'GENERAL'),
     [msg, setMsg] = useState('');
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -1047,7 +1056,7 @@ function NewPost() {
           post_id: post.id,
           starts_at: starts.toISOString(),
           ends_at: ends.toISOString(),
-          is_results_public: f.get('public') === 'on',
+          is_results_public: false,
         })
         .select('id')
         .single();
@@ -1077,25 +1086,31 @@ function NewPost() {
       );
     }
     window.alert('등록되었습니다.');
-    go('/posts');
+    go(surveyMode ? '/surveys' : '/posts');
   };
   return (
     <>
-      <Title over="NEW POST" title="게시글 작성" />
+      <Title
+        over={surveyMode ? 'NEW SURVEY' : 'NEW POST'}
+        title={surveyMode ? '설문 작성' : '게시글 작성'}
+      />
       <Card>
         <form onSubmit={submit}>
-          <Field label="유형">
-            <select value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="GENERAL">일반</option>
-              <option value="NOTICE">공지</option>
-              <option value="IMAGE">이미지</option>
-              <option value="VIDEO">영상</option>
-              <option value="SURVEY">설문</option>
-            </select>
-          </Field>
-          <label className="check">
-            <input name="pinned" type="checkbox" /> 게시판 최상단에 고정
-          </label>
+          {!surveyMode && (
+            <>
+              <Field label="유형">
+                <select value={type} onChange={(e) => setType(e.target.value)}>
+                  <option value="GENERAL">일반</option>
+                  <option value="NOTICE">공지</option>
+                  <option value="IMAGE">이미지</option>
+                  <option value="VIDEO">영상</option>
+                </select>
+              </Field>
+              <label className="check">
+                <input name="pinned" type="checkbox" /> 게시판 최상단에 고정
+              </label>
+            </>
+          )}
           <Field label="제목">
             <input name="title" required />
           </Field>
@@ -1142,18 +1157,198 @@ function NewPost() {
               <label className="check">
                 <input name="multiple" type="checkbox" /> 복수 선택 허용
               </label>
-              <label className="check">
-                <input name="public" type="checkbox" /> 진행 중 결과 공개
-              </label>
             </fieldset>
           )}
           <Notice>{msg}</Notice>
           <Btn type="submit" className="primary">
-            게시글 등록
+            {surveyMode ? '설문 등록' : '게시글 등록'}
           </Btn>
         </form>
       </Card>
     </>
+  );
+}
+function Surveys({ ctx }: { ctx: Context }) {
+  const [rows, setRows] = useState<any[]>([]);
+  const canCreate = ctx.roles.some((role) =>
+    ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER'].includes(role),
+  );
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from('posts')
+      .select(
+        'id,title,content,author_id,created_at,profiles(full_name,email),surveys(id,starts_at,ends_at,survey_questions(id,question_text,allow_multiple,survey_options(id,option_text,sort_order)))',
+      )
+      .eq('post_type', 'SURVEY')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+    setRows(data ?? []);
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+  return (
+    <>
+      <Title
+        over="SURVEY"
+        title="설문"
+        desc="설문 내용을 확인하고 이 화면에서 바로 응답할 수 있습니다."
+        action={
+          canCreate && (
+            <A href="/surveys/new" className="btn primary">
+              설문 작성
+            </A>
+          )
+        }
+      />
+      <div className="survey-list">
+        {rows.map((post) => (
+          <SurveyItem key={post.id} ctx={ctx} post={post} />
+        ))}
+        {!rows.length && <Card>등록된 설문이 없습니다.</Card>}
+      </div>
+    </>
+  );
+}
+function SurveyItem({ ctx, post }: { ctx: Context; post: any }) {
+  const survey = Array.isArray(post.surveys) ? post.surveys[0] : post.surveys;
+  const question = survey?.survey_questions?.[0];
+  const [responses, setResponses] = useState<any[]>([]),
+    [msg, setMsg] = useState('');
+  const privileged = ctx.roles.some((role) =>
+    ['SUPER_ADMIN', 'TBM_ADMIN'].includes(role),
+  );
+  const loadResponses = useCallback(async () => {
+    if (!survey?.id) return;
+    const { data } = await supabase
+      .from('survey_responses')
+      .select(
+        'id,user_id,created_at,profiles(full_name,email),survey_answers(option_id,survey_options(option_text))',
+      )
+      .eq('survey_id', survey.id)
+      .order('created_at', { ascending: false });
+    setResponses(data ?? []);
+  }, [survey?.id]);
+  useEffect(() => {
+    loadResponses();
+  }, [loadResponses]);
+  if (!survey || !question) return null;
+  const now = Date.now();
+  const started =
+    !survey.starts_at || now >= new Date(survey.starts_at).getTime();
+  const ended = !!survey.ends_at && now >= new Date(survey.ends_at).getTime();
+  const ownResponse = responses.find((r) => r.user_id === ctx.user.id);
+  const answerText = (response: any) =>
+    response.survey_answers
+      ?.map((answer: any) => answer.survey_options?.option_text)
+      .filter(Boolean)
+      .join(', ') || '답변 없음';
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const opts = new FormData(e.currentTarget).getAll('option');
+    if (!opts.length) return setMsg('답변을 선택하세요.');
+    const { data: response, error } = await supabase
+      .from('survey_responses')
+      .insert({ survey_id: survey.id, user_id: ctx.user.id })
+      .select('id')
+      .single();
+    if (error || !response) {
+      setMsg('이미 응답했거나 현재 참여할 수 없습니다.');
+      return;
+    }
+    const { error: answerError } = await supabase.from('survey_answers').insert(
+      opts.map((option) => ({
+        response_id: response.id,
+        question_id: question.id,
+        option_id: option,
+      })),
+    );
+    if (answerError) return setMsg('답변을 저장하지 못했습니다.');
+    setMsg('응답이 제출되었습니다.');
+    await loadResponses();
+  };
+  return (
+    <Card className="survey-card">
+      <div className="survey-head">
+        <div>
+          <span
+            className={`survey-state ${ended ? 'ended' : started ? 'active' : 'waiting'}`}
+          >
+            {ended ? '종료' : started ? '진행 중' : '예정'}
+          </span>
+          <h2>{post.title}</h2>
+          <small>
+            {post.profiles?.full_name || post.profiles?.email} ·{' '}
+            {survey.starts_at ? fmt(survey.starts_at) : '즉시 시작'} ~{' '}
+            {survey.ends_at ? fmt(survey.ends_at) : '종료일 없음'}
+          </small>
+        </div>
+      </div>
+      <p className="content survey-content">{post.content}</p>
+      <h3>{question.question_text}</h3>
+      {!ownResponse && started && !ended ? (
+        <form onSubmit={submit}>
+          {question.survey_options
+            ?.sort((a: any, b: any) => a.sort_order - b.sort_order)
+            .map((option: any) => (
+              <label className="choice" key={option.id}>
+                <input
+                  type={question.allow_multiple ? 'checkbox' : 'radio'}
+                  name="option"
+                  value={option.id}
+                  required={!question.allow_multiple}
+                />
+                {option.option_text}
+              </label>
+            ))}
+          <Notice ok={msg.includes('제출')}>{msg}</Notice>
+          <Btn type="submit" className="primary">
+            응답 제출
+          </Btn>
+        </form>
+      ) : ownResponse ? (
+        <div className="own-answer">
+          <b>내 답변</b>
+          <span>{answerText(ownResponse)}</span>
+        </div>
+      ) : (
+        <p className="muted">현재 응답할 수 없는 설문입니다.</p>
+      )}
+      {privileged && (
+        <div className="survey-results">
+          <h3>전체 참여자 답변 ({responses.length}명)</h3>
+          <div className="tablewrap survey-result-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>참여자</th>
+                  <th>답변</th>
+                  <th>응답일시</th>
+                </tr>
+              </thead>
+              <tbody>
+                {responses.map((response) => (
+                  <tr key={response.id}>
+                    <td>
+                      {response.profiles?.full_name ||
+                        response.profiles?.email ||
+                        response.user_id}
+                    </td>
+                    <td>{answerText(response)}</td>
+                    <td>{fmt(response.created_at)}</td>
+                  </tr>
+                ))}
+                {!responses.length && (
+                  <tr>
+                    <td colSpan={3}>아직 응답이 없습니다.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
@@ -1774,6 +1969,8 @@ function Protected({ path }: { path: string }) {
   else if (path === '/visits/new') page = <Visits ctx={ctx} newMode />;
   else if (path === '/visits') page = <Visits ctx={ctx} />;
   else if (path === '/board') page = <Board />;
+  else if (path === '/surveys/new') page = <NewPost surveyMode />;
+  else if (path === '/surveys') page = <Surveys ctx={ctx} />;
   else if (path === '/posts/new') page = <NewPost />;
   else if (/^\/posts\/[^/]+\/edit$/.test(path))
     page = <EditPost ctx={ctx} id={path.split('/')[2]} />;
