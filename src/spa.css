@@ -78,9 +78,13 @@ textarea {
   color: #0369a1;
 }
 .hero h1 {
-  font-size: clamp(2.5rem, 7vw, 5.5rem);
+  font-size: clamp(2rem, 7vw, 5.5rem);
   line-height: 1.04;
   margin: 0.5rem 0 1.5rem;
+}
+.hero h1 span {
+  display: block;
+  white-space: nowrap;
 }
 .hero > p {
   font-size: 1.1rem;
@@ -380,6 +384,91 @@ th {
   text-overflow: ellipsis;
   color: #5b677a;
 }
+.post-table-card {
+  margin-top: 1rem;
+  padding: 0;
+  overflow: hidden;
+}
+.post-table-wrap {
+  margin: 0;
+}
+.post-table {
+  min-width: 760px;
+}
+.post-table th,
+.post-table td {
+  padding: 0.72rem 0.8rem;
+}
+.post-table th:first-child,
+.post-table td:first-child,
+.post-table th:nth-child(2),
+.post-table td:nth-child(2),
+.post-table th:nth-child(5),
+.post-table td:nth-child(5),
+.post-table th:nth-child(6),
+.post-table td:nth-child(6) {
+  width: 5.5rem;
+  text-align: center;
+  white-space: nowrap;
+}
+.post-table th:nth-child(4),
+.post-table td:nth-child(4) {
+  width: 10rem;
+  white-space: nowrap;
+}
+.post-title-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 18rem;
+}
+.post-title-link {
+  overflow: hidden;
+  color: #075985;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-title-link:hover {
+  text-decoration: underline;
+}
+.pinned-post {
+  background: #eff6ff;
+}
+.pinned-post .post-title-link {
+  color: #0754a6;
+  font-weight: 700;
+}
+.post-type-icon,
+.pin-icon,
+.attachment-icon {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  vertical-align: middle;
+}
+.pin-icon,
+.type-notice {
+  color: #0284c7;
+}
+.type-survey {
+  color: #7c3aed;
+}
+.type-image {
+  color: #059669;
+}
+.type-video {
+  color: #dc2626;
+}
+.type-general,
+.attachment-icon {
+  color: #64748b;
+}
+.post-empty {
+  height: 9rem;
+  text-align: center !important;
+  color: #64748b;
+}
 .formgrid {
   display: grid !important;
   grid-template-columns: 1fr 1fr;
@@ -480,7 +569,7 @@ legend {
     padding: 10vh 0 5vh;
   }
   .hero h1 {
-    font-size: 2.6rem;
+    font-size: clamp(1.75rem, 8.3vw, 2.6rem);
   }
   .filters {
     flex-wrap: wrap;

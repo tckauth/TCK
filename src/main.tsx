@@ -1,20 +1,21 @@
 /* oxlint-disable typescript/no-explicit-any, typescript/no-deprecated, typescript/no-base-to-string, typescript/no-floating-promises, typescript/no-useless-default-assignment, react/react-compiler, next/no-img-element, jsx-a11y/media-has-caption */
-import React, {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useState,
-} from 'react';
+import React, { FormEvent, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Activity,
+  BarChart3,
   BookOpen,
   CalendarPlus,
   ClipboardCheck,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu,
   Monitor,
+  Paperclip,
+  Pin,
+  PlaySquare,
+  Image as ImageIcon,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -85,6 +86,17 @@ const fmt = (v: string) =>
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(v));
+const fmtDate = (v: string) =>
+  new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(v));
+const loginDevice = () =>
+  /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    ? '모바일'
+    : 'PC';
 const go = (path: string) => {
   history.pushState({}, '', path);
   dispatchEvent(new PopStateEvent('popstate'));
@@ -162,9 +174,8 @@ function PublicHome() {
       <div className="hero">
         <p className="eyebrow">TCK EHS PLATFORM</p>
         <h1>
-          안전한 현장을 위한
-          <br />
-          하나의 운영 공간
+          <span>안전한 현장을 위한</span>
+          <span>하나의 운영 공간</span>
         </h1>
         <p>방문·공사 등록, TBM 현황, 공지와 설문을 통합 관리합니다.</p>
         <div className="actions">
@@ -241,15 +252,13 @@ function AuthPage({ signup = false }: { signup?: boolean }) {
         .from('profiles')
         .update({ last_sign_in_at: new Date().toISOString() })
         .eq('id', data.user.id);
-      await supabase
-        .from('audit_logs')
-        .insert({
-          user_id: data.user.id,
-          action: 'LOGIN',
-          target_type: 'AUTH',
-          target_id: data.user.id,
-          description: '로그인했습니다.',
-        });
+      await supabase.from('audit_logs').insert({
+        user_id: data.user.id,
+        action: 'LOGIN',
+        target_type: 'AUTH',
+        target_id: data.user.id,
+        description: `${loginDevice()}에서 로그인했습니다.`,
+      });
       location.href = '/dashboard';
     }
   };
@@ -754,9 +763,15 @@ function Board() {
         desc={`${seoulDate()} 사업장 방문 및 TBM 현황`}
       />
       <div className="board-summary" aria-label="금일 방문 요약">
-        <span>업체 <b>{rows.length}</b>곳</span>
-        <span>공사 <b>{rows.filter((v) => v.construction_yn).length}</b>건</span>
-        <span>방문인원 <b>{rows.reduce((s, v) => s + v.visitor_count, 0)}</b>명</span>
+        <span>
+          업체 <b>{rows.length}</b>곳
+        </span>
+        <span>
+          공사 <b>{rows.filter((v) => v.construction_yn).length}</b>건
+        </span>
+        <span>
+          방문인원 <b>{rows.reduce((s, v) => s + v.visitor_count, 0)}</b>명
+        </span>
       </div>
       <Card className="board-table-card">
         <div className="tablewrap board-table-wrap">
@@ -784,17 +799,33 @@ function Board() {
                         : ''
                   }
                 >
-                  <td><b>{v.company_name}</b></td>
+                  <td>
+                    <b>{v.company_name}</b>
+                  </td>
                   <td>{v.construction_location}</td>
                   <td>{v.purpose}</td>
-                  <td>{map.get(v.tck_manager_id)?.full_name || map.get(v.tck_manager_id)?.email || '—'}</td>
+                  <td>
+                    {map.get(v.tck_manager_id)?.full_name ||
+                      map.get(v.tck_manager_id)?.email ||
+                      '—'}
+                  </td>
                   <td>{v.visitor_count}명</td>
                   <td>{v.construction_yn ? 'O' : 'X'}</td>
-                  <td><span className={`tbm-status ${v.tbm_yn === 'O' ? 'complete' : 'pending'}`}>{v.tbm_yn}</span></td>
+                  <td>
+                    <span
+                      className={`tbm-status ${v.tbm_yn === 'O' ? 'complete' : 'pending'}`}
+                    >
+                      {v.tbm_yn}
+                    </span>
+                  </td>
                 </tr>
               ))}
               {!rows.length && (
-                <tr><td className="board-empty" colSpan={7}>금일 방문/공사자 없음</td></tr>
+                <tr>
+                  <td className="board-empty" colSpan={7}>
+                    금일 방문/공사자 없음
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -810,7 +841,7 @@ function Posts({ ctx }: { ctx: Context }) {
   const load = useCallback(async () => {
     let x = supabase
       .from('posts')
-      .select('*,profiles(full_name,email)')
+      .select('*,profiles(full_name,email),post_attachments(id)')
       .is('deleted_at', null)
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false });
@@ -848,26 +879,73 @@ function Posts({ ctx }: { ctx: Context }) {
           <Btn onClick={load}>검색</Btn>
         </div>
       </Card>
-      <div className="list">
-        {rows.map((p) => (
-          <A href={`/posts/${p.id}`} key={p.id}>
-            <Card>
-              <div>
-                <span className="badge">{p.post_type}</span>
-                {p.is_pinned && <span className="badge">상단 고정</span>}
-              </div>
-              <h3>{p.title}</h3>
-              <p>{p.content}</p>
-              <small>
-                {p.profiles?.full_name || p.profiles?.email} ·{' '}
-                {fmt(p.created_at)} · 조회 {p.view_count}
-              </small>
-            </Card>
-          </A>
-        ))}
-      </div>
+      <Card className="post-table-card">
+        <div className="tablewrap post-table-wrap">
+          <table className="post-table">
+            <thead>
+              <tr>
+                <th>번호</th>
+                <th>구분</th>
+                <th>제목</th>
+                <th>작성자</th>
+                <th>작성일</th>
+                <th>조회</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((p, index) => (
+                <tr key={p.id} className={p.is_pinned ? 'pinned-post' : ''}>
+                  <td>
+                    {p.is_pinned ? (
+                      <Pin className="pin-icon" aria-label="상단 고정" />
+                    ) : (
+                      rows.length - index
+                    )}
+                  </td>
+                  <td>
+                    <PostTypeIcon type={p.post_type} />
+                  </td>
+                  <td className="post-title-cell">
+                    <A href={`/posts/${p.id}`} className="post-title-link">
+                      {p.title}
+                    </A>
+                    {p.post_attachments?.length > 0 && (
+                      <Paperclip
+                        className="attachment-icon"
+                        aria-label="첨부파일 있음"
+                      />
+                    )}
+                  </td>
+                  <td>{p.profiles?.full_name || p.profiles?.email}</td>
+                  <td>{fmtDate(p.created_at)}</td>
+                  <td>{p.view_count}</td>
+                </tr>
+              ))}
+              {!rows.length && (
+                <tr>
+                  <td colSpan={6} className="post-empty">
+                    등록된 게시물이 없습니다.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </>
   );
+}
+function PostTypeIcon({ type }: { type: string }) {
+  const className = `post-type-icon type-${type.toLowerCase()}`;
+  if (type === 'NOTICE')
+    return <Megaphone className={className} aria-label="공지" />;
+  if (type === 'SURVEY')
+    return <BarChart3 className={className} aria-label="설문" />;
+  if (type === 'IMAGE')
+    return <ImageIcon className={className} aria-label="이미지" />;
+  if (type === 'VIDEO')
+    return <PlaySquare className={className} aria-label="영상" />;
+  return <BookOpen className={className} aria-label="일반" />;
 }
 function NewPost() {
   const [type, setType] = useState('GENERAL'),
@@ -916,16 +994,14 @@ function NewPost() {
         setMsg(up.error.message);
         return;
       }
-      await supabase
-        .from('post_attachments')
-        .insert({
-          post_id: post.id,
-          file_name: file.name,
-          file_path: path,
-          file_type: file.type.startsWith('image/') ? 'IMAGE' : 'VIDEO',
-          file_size: file.size,
-          mime_type: file.type,
-        });
+      await supabase.from('post_attachments').insert({
+        post_id: post.id,
+        file_name: file.name,
+        file_path: path,
+        file_type: file.type.startsWith('image/') ? 'IMAGE' : 'VIDEO',
+        file_size: file.size,
+        mime_type: file.type,
+      });
     }
     if (type === 'SURVEY') {
       const starts = new Date(String(f.get('starts'))),
@@ -965,15 +1041,13 @@ function NewPost() {
         setMsg('설문 질문을 저장하지 못했습니다.');
         return;
       }
-      await supabase
-        .from('survey_options')
-        .insert(
-          options.map((o, i) => ({
-            question_id: qu.id,
-            option_text: o,
-            sort_order: i,
-          })),
-        );
+      await supabase.from('survey_options').insert(
+        options.map((o, i) => ({
+          question_id: qu.id,
+          option_text: o,
+          sort_order: i,
+        })),
+      );
     }
     window.alert('등록되었습니다.');
     go('/posts');
@@ -1087,15 +1161,13 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
       setMsg('이미 응답했거나 제출할 수 없습니다.');
       return;
     }
-    await supabase
-      .from('survey_answers')
-      .insert(
-        opts.map((o) => ({
-          response_id: r.id,
-          question_id: q.id,
-          option_id: o,
-        })),
-      );
+    await supabase.from('survey_answers').insert(
+      opts.map((o) => ({
+        response_id: r.id,
+        question_id: q.id,
+        option_id: o,
+      })),
+    );
     setMsg('응답이 제출되었습니다.');
   };
   return (
