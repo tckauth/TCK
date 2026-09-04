@@ -60,8 +60,12 @@ textarea {
   font-weight: 800;
   font-size: 1.15rem;
 }
-.brand svg {
-  color: #0369a1;
+.tck-logo {
+  display: block;
+  width: 5.5rem;
+  height: 2.6rem;
+  object-fit: contain;
+  border-radius: 0.25rem;
 }
 .hero {
   padding: 12vh 0 8vh;
@@ -168,6 +172,16 @@ textarea {
   height: 66px;
   padding: 0 1.3rem;
   border-bottom: 1px solid #ffffff18;
+}
+.logo .tck-logo {
+  width: 4.5rem;
+  height: 2.1rem;
+}
+.logo span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .shell nav {
   padding: 0.8rem;

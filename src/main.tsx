@@ -156,7 +156,8 @@ function PublicHome() {
   return (
     <main className="public">
       <div className="brand">
-        <ShieldCheck /> TCK Safety
+        <img className="tck-logo" src="/tck-logo.png" alt="TCK" />
+        <span>TCK Safety</span>
       </div>
       <div className="hero">
         <p className="eyebrow">TCK EHS PLATFORM</p>
@@ -255,7 +256,8 @@ function AuthPage({ signup = false }: { signup?: boolean }) {
   return (
     <main className="auth">
       <A href="/" className="brand">
-        <ShieldCheck /> TCK Safety
+        <img className="tck-logo" src="/tck-logo.png" alt="TCK" />
+        <span>TCK Safety</span>
       </A>
       <Card>
         <h1>{signup ? '회원가입' : '로그인'}</h1>
@@ -337,8 +339,8 @@ function Shell({ ctx, children }: { ctx: Context; children: React.ReactNode }) {
       )}
       <aside id="mobile-navigation" className={mobile ? 'open' : ''}>
         <A href="/dashboard" className="logo" onNavigate={closeMobileMenu}>
-          <ShieldCheck />
-          {ctx.siteTitle}
+          <img className="tck-logo" src="/tck-logo.png" alt="TCK" />
+          <span>{ctx.siteTitle}</span>
         </A>
         <nav>
           {visible.map(([p, l, I]) => (
@@ -511,11 +513,12 @@ function Visits({ ctx, newMode = false }: { ctx: Context; newMode?: boolean }) {
       return;
     }
     const { error } = await supabase.from('visits').insert(payload);
-    setMsg(error ? error.message : '등록되었습니다.');
-    if (!error) {
-      e.currentTarget.reset();
-      await load();
+    if (error) {
+      setMsg(error.message);
+      return;
     }
+    window.alert('등록되었습니다.');
+    go('/visits');
   };
   if (newMode)
     return (
@@ -964,7 +967,8 @@ function NewPost() {
           })),
         );
     }
-    go(`/posts/${post.id}`);
+    window.alert('등록되었습니다.');
+    go('/posts');
   };
   return (
     <>
