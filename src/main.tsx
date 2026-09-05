@@ -104,7 +104,9 @@ const fmtDate = (v: string) =>
     day: '2-digit',
   }).format(new Date(v));
 const loginDevice = () =>
-  /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+  /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+  (navigator.maxTouchPoints > 1 &&
+    Math.min(window.screen.width, window.screen.height) <= 1024)
     ? '모바일'
     : 'PC';
 const go = (path: string) => {
@@ -1225,14 +1227,22 @@ function Surveys({ ctx }: { ctx: Context }) {
       />
       <div className="survey-list">
         {rows.map((post) => (
-          <SurveyItem key={post.id} ctx={ctx} post={post} />
+          <SurveyItem key={post.id} ctx={ctx} post={post} onChanged={load} />
         ))}
         {!rows.length && <Card>등록된 설문이 없습니다.</Card>}
       </div>
     </>
   );
 }
-function SurveyItem({ ctx, post }: { ctx: Context; post: any }) {
+function SurveyItem({
+  ctx,
+  post,
+  onChanged,
+}: {
+  ctx: Context;
+  post: any;
+  onChanged: () => Promise<void>;
+}) {
   const survey = Array.isArray(post.surveys) ? post.surveys[0] : post.surveys;
   const question = survey?.survey_questions?.[0];
   const [responses, setResponses] = useState<any[]>([]),
@@ -1310,6 +1320,26 @@ function SurveyItem({ ctx, post }: { ctx: Context; post: any }) {
             {survey.ends_at ? fmt(survey.ends_at) : '종료일 없음'}
           </small>
         </div>
+        {ctx.roles.includes('SUPER_ADMIN') && (
+          <div className="title-actions">
+            <A href={`/posts/${post.id}/edit`} className="btn">
+              수정
+            </A>
+            <Btn
+              onClick={async () => {
+                if (!confirm('설문을 삭제하시겠습니까?')) return;
+                const { error } = await supabase
+                  .from('posts')
+                  .update({ deleted_at: new Date().toISOString() })
+                  .eq('id', post.id);
+                if (error) return setMsg(error.message);
+                await onChanged();
+              }}
+            >
+              삭제
+            </Btn>
+          </div>
+        )}
       </div>
       <p className="content survey-content">{post.content}</p>
       <h3>{question.question_text}</h3>
@@ -1409,8 +1439,8 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
   }, [load]);
   if (!post) return <p>불러오는 중...</p>;
   const canEdit =
-    post.post_type !== 'SURVEY' &&
-    (ctx.roles.includes('SUPER_ADMIN') || post.author_id === ctx.user.id);
+    ctx.roles.includes('SUPER_ADMIN') ||
+    (post.post_type !== 'SURVEY' && post.author_id === ctx.user.id);
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const opts = new FormData(e.currentTarget).getAll('option'),
@@ -1493,7 +1523,7 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
           </form>
         </Card>
       )}
-      {ctx.roles.includes('SUPER_ADMIN') && post.post_type !== 'SURVEY' && (
+      {ctx.roles.includes('SUPER_ADMIN') && (
         <Btn
           onClick={async () => {
             if (confirm('삭제하시겠습니까?')) {
@@ -1501,7 +1531,7 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
                 .from('posts')
                 .update({ deleted_at: new Date().toISOString() })
                 .eq('id', id);
-              go('/posts');
+              go(post.post_type === 'SURVEY' ? '/surveys' : '/posts');
             }
           }}
         >
@@ -1524,10 +1554,9 @@ function EditPost({ ctx, id }: { ctx: Context; id: string }) {
   }, [id]);
   if (!post) return <p>불러오는 중...</p>;
   const canEdit =
-    post.post_type !== 'SURVEY' &&
-    (ctx.roles.includes('SUPER_ADMIN') || post.author_id === ctx.user.id);
-  if (!canEdit)
-    return <Card>설문 또는 수정 권한이 없는 게시물은 수정할 수 없습니다.</Card>;
+    ctx.roles.includes('SUPER_ADMIN') ||
+    (post.post_type !== 'SURVEY' && post.author_id === ctx.user.id);
+  if (!canEdit) return <Card>수정 권한이 없는 게시물입니다.</Card>;
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -1548,7 +1577,7 @@ function EditPost({ ctx, id }: { ctx: Context; id: string }) {
       .eq('id', id);
     if (error) return setMsg(error.message);
     window.alert('수정되었습니다.');
-    go(`/posts/${id}`);
+    go(post.post_type === 'SURVEY' ? '/surveys' : `/posts/${id}`);
   };
   return (
     <>
@@ -1564,7 +1593,9 @@ function EditPost({ ctx, id }: { ctx: Context; id: string }) {
               type="checkbox"
               defaultChecked={post.is_pinned}
             />
-            게시판 최상단에 고정
+            {post.post_type === 'SURVEY'
+              ? '설문 최상단에 고정'
+              : '게시판 최상단에 고정'}
           </label>
           <Field label="제목">
             <input name="title" defaultValue={post.title} required />
@@ -1772,7 +1803,7 @@ function Logs() {
   useEffect(() => {
     supabase
       .from('audit_logs')
-      .select('*,profiles(email)')
+      .select('*,profiles(full_name,email)')
       .order('created_at', { ascending: false })
       .limit(100)
       .then(({ data }) => setRows(data ?? []));
@@ -1800,8 +1831,15 @@ function Logs() {
               {rows.map((x) => (
                 <tr key={x.id}>
                   <td>{x.action}</td>
-                  <td>{x.profiles?.email || '시스템'}</td>
-                  <td>{x.target_type || '—'}</td>
+                  <td>
+                    {x.profiles?.full_name
+                      ? `${x.profiles.full_name} (${x.profiles.email})`
+                      : x.profiles?.email || '시스템'}
+                  </td>
+                  <td>
+                    {x.target_type || '—'}
+                    {x.target_id ? ` · ${x.target_id}` : ''}
+                  </td>
                   <td>{x.description || '—'}</td>
                   <td>{fmt(x.created_at)}</td>
                 </tr>
@@ -1821,21 +1859,21 @@ function ServiceSettings({ ctx }: { ctx: Context }) {
       rows = [
         {
           key: 'site_title',
-          value: JSON.stringify(f.get('title')),
+          value: String(f.get('title'))
+            .replace(/^\s*["“”]+|["“”]+\s*$/g, '')
+            .trim(),
           is_public: true,
           updated_by: ctx.user.id,
         },
         {
           key: 'maintenance_mode',
-          value: JSON.stringify(f.get('maintenance') === 'on'),
+          value: f.get('maintenance') === 'on',
           is_public: true,
           updated_by: ctx.user.id,
         },
         {
           key: 'session_timeout_minutes',
-          value: JSON.stringify(
-            Math.max(1, Math.min(1440, Number(f.get('timeout')))),
-          ),
+          value: Math.max(1, Math.min(1440, Number(f.get('timeout')))),
           is_public: true,
           updated_by: ctx.user.id,
         },
