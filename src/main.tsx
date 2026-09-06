@@ -86,6 +86,8 @@ const nav = [
   ['/admin/logs', '시스템 로그', Activity],
   ['/settings', '내 설정', Settings],
 ] as const;
+const LAST_ACTIVITY_KEY = 'tck-ehs-last-activity';
+const clearLoginActivity = () => localStorage.removeItem(LAST_ACTIVITY_KEY);
 const seoulDate = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(
     new Date(),
@@ -271,6 +273,7 @@ function AuthPage({ signup = false }: { signup?: boolean }) {
         target_id: data.user.id,
         description: `${loginDevice()}에서 로그인했습니다.`,
       });
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
       location.href = '/dashboard';
     }
   };
@@ -321,21 +324,55 @@ function Shell({ ctx, children }: { ctx: Context; children: React.ReactNode }) {
   );
   useEffect(() => {
     let timer: number;
-    const reset = () => {
-      clearTimeout(timer);
-      timer = window.setTimeout(async () => {
-        await supabase.auth.signOut();
-        location.href = '/login';
-      }, ctx.timeout * 60000);
+    let signingOut = false;
+    const expire = async () => {
+      if (signingOut) return;
+      signingOut = true;
+      clearLoginActivity();
+      await supabase.auth.signOut();
+      location.href = '/login';
     };
-    ['click', 'keydown', 'touchstart'].forEach((x) =>
+    const schedule = () => {
+      clearTimeout(timer);
+      const lastActivity = Number(localStorage.getItem(LAST_ACTIVITY_KEY));
+      const remaining = ctx.timeout * 60000 - (Date.now() - lastActivity);
+      if (!lastActivity || remaining <= 0) {
+        void expire();
+        return;
+      }
+      timer = window.setTimeout(expire, remaining);
+    };
+    const reset = () => {
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+      schedule();
+    };
+    const check = () => {
+      if (document.visibilityState === 'visible') schedule();
+    };
+    const syncAcrossTabs = (event: StorageEvent) => {
+      if (event.key === LAST_ACTIVITY_KEY) schedule();
+    };
+    ['pointerdown', 'keydown', 'touchstart'].forEach((x) =>
       addEventListener(x, reset),
     );
-    reset();
-    return () =>
-      ['click', 'keydown', 'touchstart'].forEach((x) =>
+    addEventListener('focus', check);
+    addEventListener('pageshow', check);
+    addEventListener('storage', syncAcrossTabs);
+    document.addEventListener('visibilitychange', check);
+    if (!localStorage.getItem(LAST_ACTIVITY_KEY)) {
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+    }
+    schedule();
+    return () => {
+      clearTimeout(timer);
+      ['pointerdown', 'keydown', 'touchstart'].forEach((x) =>
         removeEventListener(x, reset),
       );
+      removeEventListener('focus', check);
+      removeEventListener('pageshow', check);
+      removeEventListener('storage', syncAcrossTabs);
+      document.removeEventListener('visibilitychange', check);
+    };
   }, [ctx.timeout]);
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -397,6 +434,7 @@ function Shell({ ctx, children }: { ctx: Context; children: React.ReactNode }) {
             <Btn
               aria-label="로그아웃"
               onClick={async () => {
+                clearLoginActivity();
                 await supabase.auth.signOut();
                 location.href = '/login';
               }}
@@ -1800,13 +1838,41 @@ function UsersAdmin({ ctx }: { ctx: Context }) {
 }
 function Logs() {
   const [rows, setRows] = useState<any[]>([]);
+  const [targets, setTargets] = useState<Record<string, string>>({});
   useEffect(() => {
-    supabase
-      .from('audit_logs')
-      .select('*,profiles(full_name,email)')
-      .order('created_at', { ascending: false })
-      .limit(100)
-      .then(({ data }) => setRows(data ?? []));
+    (async () => {
+      const { data } = await supabase
+        .from('audit_logs')
+        .select('*,profiles(full_name,email)')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      const logs = data ?? [];
+      setRows(logs);
+      const ids = [
+        ...new Set(
+          logs
+            .map((row) => row.target_id)
+            .filter((id): id is string =>
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                id ?? '',
+              ),
+            ),
+        ),
+      ];
+      if (!ids.length) return;
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id,full_name,email')
+        .in('id', ids);
+      setTargets(
+        Object.fromEntries(
+          (profiles ?? []).map((profile) => [
+            profile.id,
+            profile.full_name || profile.email || '사용자명 없음',
+          ]),
+        ),
+      );
+    })();
   }, []);
   return (
     <>
@@ -1838,7 +1904,13 @@ function Logs() {
                   </td>
                   <td>
                     {x.target_type || '—'}
-                    {x.target_id ? ` · ${x.target_id}` : ''}
+                    {x.target_id
+                      ? ` · ${
+                          ['USER', 'AUTH'].includes(x.target_type)
+                            ? targets[x.target_id] || '사용자 정보 없음'
+                            : x.target_id
+                        }`
+                      : ''}
                   </td>
                   <td>{x.description || '—'}</td>
                   <td>{fmt(x.created_at)}</td>
