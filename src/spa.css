@@ -416,6 +416,7 @@ th {
 .post-table th,
 .post-table td {
   padding: 0.72rem 0.8rem;
+  vertical-align: middle;
 }
 .post-table th:first-child,
 .post-table td:first-child,
@@ -435,17 +436,20 @@ th {
   white-space: nowrap;
 }
 .post-title-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
   min-width: 18rem;
 }
 .post-title-link {
+  display: inline-block;
+  max-width: calc(100% - 1.75rem);
   overflow: hidden;
   color: #075985;
   font-weight: 600;
   text-overflow: ellipsis;
+  vertical-align: middle;
   white-space: nowrap;
+}
+.post-title-cell .attachment-icon {
+  margin-left: 0.45rem;
 }
 .post-title-link:hover {
   text-decoration: underline;

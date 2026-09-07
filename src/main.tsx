@@ -1642,27 +1642,95 @@ function SurveyItem({
 function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
   const [post, setPost] = useState<any>(),
     [survey, setSurvey] = useState<any>(),
-    [msg, setMsg] = useState('');
+    [msg, setMsg] = useState(''),
+    [loadError, setLoadError] = useState('');
   const load = useCallback(async () => {
-    const { data } = await supabase
+    setLoadError('');
+    const { data, error } = await supabase
       .from('posts')
-      .select('*,profiles(full_name,email),post_attachments(*)')
+      .select('*')
       .eq('id', id)
       .single();
-    setPost(data);
+    if (error || !data) {
+      setLoadError(
+        `게시물을 불러오지 못했습니다: ${error?.message || '게시물이 없습니다.'}`,
+      );
+      return;
+    }
+    const [{ data: author }, { data: attachments }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id,full_name,email')
+        .eq('id', data.author_id)
+        .maybeSingle(),
+      supabase.from('post_attachments').select('*').eq('post_id', id),
+    ]);
+    setPost({
+      ...data,
+      profiles: author,
+      post_attachments: attachments ?? [],
+    });
     void supabase.rpc('record_post_view', { target_post: id });
     if (data?.post_type === 'SURVEY') {
-      const { data: s } = await supabase
+      const { data: s, error: surveyError } = await supabase
         .from('surveys')
-        .select('*,survey_questions(*,survey_options(*))')
+        .select('*')
         .eq('post_id', id)
         .single();
-      setSurvey(s);
+      if (surveyError || !s) {
+        setLoadError(
+          `설문을 불러오지 못했습니다: ${surveyError?.message || '설문 설정이 없습니다.'}`,
+        );
+        return;
+      }
+      const { data: questions, error: questionError } = await supabase
+        .from('survey_questions')
+        .select('*')
+        .eq('survey_id', s.id)
+        .order('sort_order');
+      if (questionError) {
+        setLoadError(
+          `설문 질문을 불러오지 못했습니다: ${questionError.message}`,
+        );
+        return;
+      }
+      const questionIds = (questions ?? []).map((question) => question.id);
+      const { data: options, error: optionError } = questionIds.length
+        ? await supabase
+            .from('survey_options')
+            .select('*')
+            .in('question_id', questionIds)
+            .order('sort_order')
+        : { data: [], error: null };
+      if (optionError) {
+        setLoadError(
+          `설문 선택지를 불러오지 못했습니다: ${optionError.message}`,
+        );
+        return;
+      }
+      setSurvey({
+        ...s,
+        survey_questions: (questions ?? []).map((question) => ({
+          ...question,
+          survey_options: (options ?? []).filter(
+            (option) => option.question_id === question.id,
+          ),
+        })),
+      });
     }
   }, [id]);
   useEffect(() => {
     load();
   }, [load]);
+  if (loadError)
+    return (
+      <Card>
+        <Notice>{loadError}</Notice>
+        <A href="/posts" className="btn">
+          목록
+        </A>
+      </Card>
+    );
   if (!post) return <p>불러오는 중...</p>;
   const canEdit =
     ctx.roles.includes('SUPER_ADMIN') ||
