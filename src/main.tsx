@@ -895,6 +895,7 @@ function Posts({ ctx }: { ctx: Context }) {
   const [rows, setRows] = useState<any[]>([]),
     [q, setQ] = useState(''),
     [type, setType] = useState('ALL'),
+    [loadError, setLoadError] = useState(''),
     [viewReport, setViewReport] = useState<{
       title: string;
       rows: any[];
@@ -904,9 +905,10 @@ function Posts({ ctx }: { ctx: Context }) {
   );
   const canViewReport = canWrite;
   const load = useCallback(async () => {
+    setLoadError('');
     let x = supabase
       .from('posts')
-      .select('*,profiles(full_name,email),post_attachments(id)')
+      .select('*')
       .is('deleted_at', null)
       .neq('post_type', 'SURVEY')
       .order('is_pinned', { ascending: false })
@@ -916,8 +918,45 @@ function Posts({ ctx }: { ctx: Context }) {
         `title.ilike.%${q.replace(/[%,()]/g, '')}%,content.ilike.%${q.replace(/[%,()]/g, '')}%`,
       );
     if (type !== 'ALL') x = x.eq('post_type', type);
-    const { data } = await x;
-    setRows(data ?? []);
+    const { data, error } = await x;
+    if (error) {
+      setRows([]);
+      setLoadError(`게시물을 불러오지 못했습니다: ${error.message}`);
+      return;
+    }
+    const posts = data ?? [];
+    if (!posts.length) {
+      setRows([]);
+      return;
+    }
+    const authorIds = [...new Set(posts.map((post) => post.author_id))];
+    const postIds = posts.map((post) => post.id);
+    const [{ data: authors }, { data: attachments }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id,full_name,email')
+        .in('id', authorIds),
+      supabase
+        .from('post_attachments')
+        .select('id,post_id')
+        .in('post_id', postIds),
+    ]);
+    const authorMap = new Map(
+      (authors ?? []).map((author) => [author.id, author]),
+    );
+    const attachmentMap = new Map<string, any[]>();
+    for (const attachment of attachments ?? []) {
+      const list = attachmentMap.get(attachment.post_id) ?? [];
+      list.push(attachment);
+      attachmentMap.set(attachment.post_id, list);
+    }
+    setRows(
+      posts.map((post) => ({
+        ...post,
+        profiles: authorMap.get(post.author_id),
+        post_attachments: attachmentMap.get(post.id) ?? [],
+      })),
+    );
   }, [q, type]);
   useEffect(() => {
     load();
@@ -970,6 +1009,7 @@ function Posts({ ctx }: { ctx: Context }) {
         </div>
       </Card>
       <Card className="post-table-card">
+        <Notice>{loadError}</Notice>
         <div className="tablewrap post-table-wrap">
           <table className="post-table">
             <thead>
@@ -1298,21 +1338,100 @@ function NewPost({ surveyMode = false }: { surveyMode?: boolean }) {
   );
 }
 function Surveys({ ctx }: { ctx: Context }) {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<any[]>([]),
+    [loadError, setLoadError] = useState('');
   const canCreate = ctx.roles.some((role) =>
     ['SUPER_ADMIN', 'TBM_ADMIN'].includes(role),
   );
   const load = useCallback(async () => {
-    const { data } = await supabase
+    setLoadError('');
+    const { data, error } = await supabase
       .from('posts')
-      .select(
-        'id,title,content,author_id,created_at,is_pinned,profiles(full_name,email),surveys(id,starts_at,ends_at,survey_questions(id,question_text,allow_multiple,survey_options(id,option_text,sort_order)))',
-      )
+      .select('id,title,content,author_id,created_at,is_pinned')
       .eq('post_type', 'SURVEY')
       .is('deleted_at', null)
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false });
-    setRows(data ?? []);
+    if (error) {
+      setRows([]);
+      setLoadError(`설문을 불러오지 못했습니다: ${error.message}`);
+      return;
+    }
+    const posts = data ?? [];
+    if (!posts.length) {
+      setRows([]);
+      return;
+    }
+    const postIds = posts.map((post) => post.id);
+    const authorIds = [...new Set(posts.map((post) => post.author_id))];
+    const [{ data: surveys, error: surveyError }, { data: authors }] =
+      await Promise.all([
+        supabase
+          .from('surveys')
+          .select('id,post_id,starts_at,ends_at')
+          .in('post_id', postIds),
+        supabase
+          .from('profiles')
+          .select('id,full_name,email')
+          .in('id', authorIds),
+      ]);
+    if (surveyError) {
+      setRows([]);
+      setLoadError(`설문 설정을 불러오지 못했습니다: ${surveyError.message}`);
+      return;
+    }
+    const surveyIds = (surveys ?? []).map((survey) => survey.id);
+    const { data: questions, error: questionError } = surveyIds.length
+      ? await supabase
+          .from('survey_questions')
+          .select('id,survey_id,question_text,allow_multiple,sort_order')
+          .in('survey_id', surveyIds)
+      : { data: [], error: null };
+    if (questionError) {
+      setRows([]);
+      setLoadError(`설문 질문을 불러오지 못했습니다: ${questionError.message}`);
+      return;
+    }
+    const questionIds = (questions ?? []).map((question) => question.id);
+    const { data: options, error: optionError } = questionIds.length
+      ? await supabase
+          .from('survey_options')
+          .select('id,question_id,option_text,sort_order')
+          .in('question_id', questionIds)
+      : { data: [], error: null };
+    if (optionError) {
+      setRows([]);
+      setLoadError(`설문 선택지를 불러오지 못했습니다: ${optionError.message}`);
+      return;
+    }
+    const authorMap = new Map(
+      (authors ?? []).map((author) => [author.id, author]),
+    );
+    const questionMap = new Map<string, any[]>();
+    for (const question of questions ?? []) {
+      questionMap.set(question.survey_id, [
+        ...(questionMap.get(question.survey_id) ?? []),
+        {
+          ...question,
+          survey_options: (options ?? []).filter(
+            (option) => option.question_id === question.id,
+          ),
+        },
+      ]);
+    }
+    const surveyMap = new Map(
+      (surveys ?? []).map((survey) => [
+        survey.post_id,
+        { ...survey, survey_questions: questionMap.get(survey.id) ?? [] },
+      ]),
+    );
+    setRows(
+      posts.map((post) => ({
+        ...post,
+        profiles: authorMap.get(post.author_id),
+        surveys: surveyMap.get(post.id),
+      })),
+    );
   }, []);
   useEffect(() => {
     load();
@@ -1332,6 +1451,7 @@ function Surveys({ ctx }: { ctx: Context }) {
         }
       />
       <div className="survey-list">
+        <Notice>{loadError}</Notice>
         {rows.map((post) => (
           <SurveyItem key={post.id} ctx={ctx} post={post} onChanged={load} />
         ))}
