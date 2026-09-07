@@ -1723,13 +1723,25 @@ function Attachments({
 
 function UsersAdmin({ ctx }: { ctx: Context }) {
   const [rows, setRows] = useState<any[]>([]),
+    [edits, setEdits] = useState<
+      Record<string, { full_name: string; email: string }>
+    >({}),
     [msg, setMsg] = useState('');
   const load = async () => {
     const { data } = await supabase
       .from('profiles')
       .select('*,user_roles(roles(name))')
       .order('created_at', { ascending: false });
-    setRows(data ?? []);
+    const users = data ?? [];
+    setRows(users);
+    setEdits(
+      Object.fromEntries(
+        users.map((user) => [
+          user.id,
+          { full_name: user.full_name || '', email: user.email || '' },
+        ]),
+      ),
+    );
   };
   useEffect(() => {
     load();
@@ -1770,13 +1782,51 @@ function UsersAdmin({ ctx }: { ctx: Context }) {
                 const role = u.user_roles?.[0]?.roles?.name ?? 'VISITER';
                 return (
                   <tr key={u.id}>
-                    <td>{u.full_name || '이름 없음'}</td>
-                    <td>{u.email}</td>
+                    <td>
+                      {superUser ? (
+                        <input
+                          aria-label={`${u.email} 사용자명`}
+                          value={edits[u.id]?.full_name ?? ''}
+                          onChange={(e) =>
+                            setEdits((current) => ({
+                              ...current,
+                              [u.id]: {
+                                ...current[u.id],
+                                full_name: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      ) : (
+                        u.full_name || '이름 없음'
+                      )}
+                    </td>
+                    <td>
+                      {superUser ? (
+                        <input
+                          aria-label={`${u.full_name || '사용자'} 이메일`}
+                          type="email"
+                          value={edits[u.id]?.email ?? ''}
+                          onChange={(e) =>
+                            setEdits((current) => ({
+                              ...current,
+                              [u.id]: {
+                                ...current[u.id],
+                                email: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      ) : (
+                        u.email
+                      )}
+                    </td>
                     <td>
                       <select
                         value={role}
                         disabled={
-                          !superUser && !['VIEWER', 'VISITER'].includes(role)
+                          (u.id === ctx.user.id && role === 'SUPER_ADMIN') ||
+                          (!superUser && !['VIEWER', 'VISITER'].includes(role))
                         }
                         onChange={(e) => op(u.id, 'ROLE', e.target.value)}
                       >
@@ -1799,6 +1849,15 @@ function UsersAdmin({ ctx }: { ctx: Context }) {
                     <td>{u.status}</td>
                     <td>{u.last_sign_in_at ? fmt(u.last_sign_in_at) : '—'}</td>
                     <td>
+                      {superUser && (
+                        <Btn
+                          onClick={() =>
+                            op(u.id, 'PROFILE', JSON.stringify(edits[u.id]))
+                          }
+                        >
+                          정보 저장
+                        </Btn>
+                      )}
                       {u.status === 'PENDING' && (
                         <Btn onClick={() => op(u.id, 'APPROVE')}>가입 승인</Btn>
                       )}
@@ -1860,15 +1919,14 @@ function Logs() {
         ),
       ];
       if (!ids.length) return;
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id,full_name,email')
-        .in('id', ids);
+      const { data: labels } = await supabase.rpc('audit_target_labels', {
+        target_ids: ids,
+      });
       setTargets(
         Object.fromEntries(
-          (profiles ?? []).map((profile) => [
-            profile.id,
-            profile.full_name || profile.email || '사용자명 없음',
+          (labels ?? []).map((target: any) => [
+            `${target.target_type}:${target.target_id}`,
+            target.target_label,
           ]),
         ),
       );
@@ -1906,9 +1964,12 @@ function Logs() {
                     {x.target_type || '—'}
                     {x.target_id
                       ? ` · ${
-                          ['USER', 'AUTH'].includes(x.target_type)
-                            ? targets[x.target_id] || '사용자 정보 없음'
-                            : x.target_id
+                          targets[`${x.target_type}:${x.target_id}`] ||
+                          (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                            x.target_id,
+                          )
+                            ? '대상 정보 없음'
+                            : x.target_id)
                         }`
                       : ''}
                   </td>
