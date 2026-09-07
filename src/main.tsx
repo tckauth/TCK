@@ -2275,7 +2275,12 @@ function Protected({ path }: { path: string }) {
         location.href = '/login';
         return;
       }
-      const roles = (data.roles ?? []) as Role[];
+      // Older accounts may still carry the initially used VISITOR spelling.
+      // Treat it as the canonical VISITER role so read/navigation permissions
+      // remain available without granting any authoring permission.
+      const roles = (data.roles ?? []).map((role: string) =>
+        role === 'VISITOR' ? 'VISITER' : role,
+      ) as Role[];
       if (data.maintenance_mode && !roles.includes('SUPER_ADMIN')) {
         setError('현재 유지보수 중입니다.');
         return;
