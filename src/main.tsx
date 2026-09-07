@@ -21,7 +21,7 @@ import {
   SlidersHorizontal,
   Users,
 } from 'lucide-react';
-import { supabase } from './supabase';
+import { createAdminAccount, supabase } from './supabase';
 import './spa.css';
 
 type Role =
@@ -1756,6 +1756,56 @@ function UsersAdmin({ ctx }: { ctx: Context }) {
     await load();
   };
   const superUser = ctx.roles.includes('SUPER_ADMIN');
+  const createUser = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const fullName = String(values.get('full_name') || '').trim();
+    const email = String(values.get('email') || '')
+      .trim()
+      .toLowerCase();
+    const password = String(values.get('password') || '');
+    if (!fullName || !email) {
+      setMsg('사용자명과 이메일을 확인하세요.');
+      return;
+    }
+    if (
+      !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password)
+    ) {
+      setMsg(
+        '비밀번호는 8자 이상이며 영문 대·소문자, 숫자, 특수문자를 각각 포함해야 합니다.',
+      );
+      return;
+    }
+    setMsg('계정을 생성하는 중입니다.');
+    const { data, error } = await createAdminAccount(email, password, fullName);
+    if (error || !data.user || data.user.identities?.length === 0) {
+      setMsg(
+        error?.message || '이미 등록된 이메일이거나 계정을 생성할 수 없습니다.',
+      );
+      return;
+    }
+    const { error: approveError } = await supabase.rpc('manage_user', {
+      target_user: data.user.id,
+      operation: 'APPROVE',
+      requested_value: null,
+    });
+    if (approveError) {
+      setMsg(`계정은 생성됐지만 승인에 실패했습니다: ${approveError.message}`);
+      await load();
+      return;
+    }
+    await supabase.from('audit_logs').insert({
+      user_id: ctx.user.id,
+      action: 'CREATE_USER',
+      target_type: 'USER',
+      target_id: data.user.id,
+      description: `${fullName} (${email}) 계정을 직접 생성하고 활성화했습니다.`,
+    });
+    form.reset();
+    setMsg('사용자 계정이 생성되고 활성화되었습니다.');
+    await load();
+  };
   return (
     <>
       <Title
@@ -1763,7 +1813,34 @@ function UsersAdmin({ ctx }: { ctx: Context }) {
         title="사용자 관리"
         desc={`${rows.length}개의 사용자 계정`}
       />
-      <Notice ok={msg === '처리되었습니다.'}>{msg}</Notice>
+      <Notice
+        ok={
+          msg === '처리되었습니다.' ||
+          msg === '사용자 계정이 생성되고 활성화되었습니다.'
+        }
+      >
+        {msg}
+      </Notice>
+      {superUser && (
+        <Card>
+          <h2>사용자 직접 생성</h2>
+          <form className="filters" onSubmit={createUser}>
+            <Field label="사용자명">
+              <input name="full_name" maxLength={100} required />
+            </Field>
+            <Field label="이메일">
+              <input name="email" type="email" required />
+            </Field>
+            <Field label="임시 비밀번호">
+              <input name="password" type="password" minLength={8} required />
+            </Field>
+            <small>8자 이상 · 영문 대문자/소문자 · 숫자 · 특수문자 포함</small>
+            <Btn type="submit" className="primary">
+              계정 생성
+            </Btn>
+          </form>
+        </Card>
+      )}
       <Card>
         <div className="tablewrap">
           <table>
