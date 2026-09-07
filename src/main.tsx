@@ -51,6 +51,7 @@ const allowed: Record<string, Role[]> = {
   '/visits/new': ['SUPER_ADMIN', 'TBM_ADMIN', 'VISITER'],
   '/board': ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER'],
   '/posts': ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER'],
+  '/posts/new': ['SUPER_ADMIN', 'TBM_ADMIN'],
   '/surveys': [
     'SUPER_ADMIN',
     'AUDIT_ADMIN',
@@ -59,7 +60,7 @@ const allowed: Record<string, Role[]> = {
     'VIEWER',
     'VISITER',
   ],
-  '/surveys/new': ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER'],
+  '/surveys/new': ['SUPER_ADMIN', 'TBM_ADMIN'],
   '/admin/users': ['SUPER_ADMIN', 'APPR_ADMIN'],
   '/admin/roles': ['SUPER_ADMIN'],
   '/admin/settings': ['SUPER_ADMIN'],
@@ -253,7 +254,12 @@ function AuthPage({ signup = false }: { signup?: boolean }) {
         password,
       });
       if (error) {
-        setMsg('이메일 또는 비밀번호를 확인하세요.');
+        setMsg(
+          error.code === 'email_not_confirmed' ||
+            /email not confirmed/i.test(error.message)
+            ? '이메일 인증 완료 후 로그인할 수 있습니다. 인증 메일을 확인하세요.'
+            : '이메일 또는 비밀번호를 확인하세요.',
+        );
         return;
       }
       const { data: ctx } = await supabase.rpc('current_user_context');
@@ -885,10 +891,18 @@ function Board() {
   );
 }
 
-function Posts() {
+function Posts({ ctx }: { ctx: Context }) {
   const [rows, setRows] = useState<any[]>([]),
     [q, setQ] = useState(''),
-    [type, setType] = useState('ALL');
+    [type, setType] = useState('ALL'),
+    [viewReport, setViewReport] = useState<{
+      title: string;
+      rows: any[];
+    } | null>(null);
+  const canWrite = ctx.roles.some((role) =>
+    ['SUPER_ADMIN', 'TBM_ADMIN'].includes(role),
+  );
+  const canViewReport = canWrite;
   const load = useCallback(async () => {
     let x = supabase
       .from('posts')
@@ -915,9 +929,11 @@ function Posts() {
         title="게시판"
         desc="공지, 자료, 영상과 설문을 확인하세요."
         action={
-          <A href="/posts/new" className="btn primary">
-            글쓰기
-          </A>
+          canWrite && (
+            <A href="/posts/new" className="btn primary">
+              글쓰기
+            </A>
+          )
         }
       />
       <Card>
@@ -992,7 +1008,24 @@ function Posts() {
                   </td>
                   <td>{p.profiles?.full_name || p.profiles?.email}</td>
                   <td>{fmtDate(p.created_at)}</td>
-                  <td>{p.view_count}</td>
+                  <td>
+                    {canViewReport ? (
+                      <Btn
+                        aria-label={`${p.title} 조회 상세`}
+                        onClick={async () => {
+                          const { data } = await supabase.rpc(
+                            'post_view_details',
+                            { target_post: p.id },
+                          );
+                          setViewReport({ title: p.title, rows: data ?? [] });
+                        }}
+                      >
+                        {p.view_count}
+                      </Btn>
+                    ) : (
+                      p.view_count
+                    )}
+                  </td>
                 </tr>
               ))}
               {!rows.length && (
@@ -1006,6 +1039,41 @@ function Posts() {
           </table>
         </div>
       </Card>
+      {viewReport && (
+        <Card>
+          <div className="title-actions">
+            <h2>{viewReport.title} 조회 내역</h2>
+            <Btn onClick={() => setViewReport(null)}>닫기</Btn>
+          </div>
+          <div className="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>사용자명</th>
+                  <th>이메일</th>
+                  <th>조회 횟수</th>
+                  <th>최근 조회</th>
+                </tr>
+              </thead>
+              <tbody>
+                {viewReport.rows.map((view) => (
+                  <tr key={view.user_id}>
+                    <td>{view.user_name}</td>
+                    <td>{view.email}</td>
+                    <td>{view.view_count}</td>
+                    <td>{fmt(view.last_viewed_at)}</td>
+                  </tr>
+                ))}
+                {!viewReport.rows.length && (
+                  <tr>
+                    <td colSpan={4}>아직 조회 기록이 없습니다.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </>
   );
 }
@@ -1232,7 +1300,7 @@ function NewPost({ surveyMode = false }: { surveyMode?: boolean }) {
 function Surveys({ ctx }: { ctx: Context }) {
   const [rows, setRows] = useState<any[]>([]);
   const canCreate = ctx.roles.some((role) =>
-    ['SUPER_ADMIN', 'TBM_ADMIN', 'VIEWER', 'VISITER'].includes(role),
+    ['SUPER_ADMIN', 'TBM_ADMIN'].includes(role),
   );
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -1462,7 +1530,7 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
       .eq('id', id)
       .single();
     setPost(data);
-    void supabase.rpc('increment_post_view', { post_id: id });
+    void supabase.rpc('record_post_view', { target_post: id });
     if (data?.post_type === 'SURVEY') {
       const { data: s } = await supabase
         .from('surveys')
@@ -1478,7 +1546,9 @@ function PostDetail({ ctx, id }: { ctx: Context; id: string }) {
   if (!post) return <p>불러오는 중...</p>;
   const canEdit =
     ctx.roles.includes('SUPER_ADMIN') ||
-    (post.post_type !== 'SURVEY' && post.author_id === ctx.user.id);
+    (ctx.roles.includes('TBM_ADMIN') &&
+      post.post_type !== 'SURVEY' &&
+      post.author_id === ctx.user.id);
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const opts = new FormData(e.currentTarget).getAll('option'),
@@ -1593,7 +1663,9 @@ function EditPost({ ctx, id }: { ctx: Context; id: string }) {
   if (!post) return <p>불러오는 중...</p>;
   const canEdit =
     ctx.roles.includes('SUPER_ADMIN') ||
-    (post.post_type !== 'SURVEY' && post.author_id === ctx.user.id);
+    (ctx.roles.includes('TBM_ADMIN') &&
+      post.post_type !== 'SURVEY' &&
+      post.author_id === ctx.user.id);
   if (!canEdit) return <Card>수정 권한이 없는 게시물입니다.</Card>;
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -1785,25 +1857,17 @@ function UsersAdmin({ ctx }: { ctx: Context }) {
       );
       return;
     }
-    const { error: approveError } = await supabase.rpc('manage_user', {
-      target_user: data.user.id,
-      operation: 'APPROVE',
-      requested_value: null,
-    });
-    if (approveError) {
-      setMsg(`계정은 생성됐지만 승인에 실패했습니다: ${approveError.message}`);
-      await load();
-      return;
-    }
     await supabase.from('audit_logs').insert({
       user_id: ctx.user.id,
       action: 'CREATE_USER',
       target_type: 'USER',
       target_id: data.user.id,
-      description: `${fullName} (${email}) 계정을 직접 생성하고 활성화했습니다.`,
+      description: `${fullName} (${email}) 계정을 직접 생성했습니다. 이메일 인증 및 가입 승인을 기다립니다.`,
     });
     form.reset();
-    setMsg('사용자 계정이 생성되고 활성화되었습니다.');
+    setMsg(
+      '사용자 계정이 생성되었습니다. 사용자가 이메일을 인증한 후 가입 승인해 주세요.',
+    );
     await load();
   };
   return (
@@ -1816,7 +1880,7 @@ function UsersAdmin({ ctx }: { ctx: Context }) {
       <Notice
         ok={
           msg === '처리되었습니다.' ||
-          msg === '사용자 계정이 생성되고 활성화되었습니다.'
+          msg.startsWith('사용자 계정이 생성되었습니다.')
         }
       >
         {msg}
@@ -2256,7 +2320,7 @@ function Protected({ path }: { path: string }) {
     page = <EditPost ctx={ctx} id={path.split('/')[2]} />;
   else if (path.startsWith('/posts/'))
     page = <PostDetail ctx={ctx} id={path.split('/')[2]} />;
-  else if (path === '/posts') page = <Posts />;
+  else if (path === '/posts') page = <Posts ctx={ctx} />;
   else if (path === '/admin/users') page = <UsersAdmin ctx={ctx} />;
   else if (path === '/admin/logs') page = <Logs />;
   else if (path === '/admin/settings') page = <ServiceSettings ctx={ctx} />;
